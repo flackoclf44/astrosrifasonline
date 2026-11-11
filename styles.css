@@ -115,8 +115,17 @@ a:hover {
     gap: 24px
 }
 
+.brand {
+    display: block;
+    flex: none;
+}
+
 .brand img {
-    width: 200px
+    height: 400px;
+    /* width: auto; */
+    max-width: none;
+    object-fit: contain;
+    width: 200px;
 }
 
 .nav {
@@ -1317,9 +1326,9 @@ a:hover {
         height: 63px
     }
 
-    /* .brand img {
+    .brand img {
         height: 46px
-    } */
+    }
 
     .nav-action {
         padding: 11px;
