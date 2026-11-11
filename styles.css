@@ -1481,3 +1481,19 @@ a:hover {
         transition: none !important
     }
 }
+
+/* Logo do header */
+.brand{
+  display:block;
+  flex:none;            /* impede o flex de encolher o link */
+}
+.brand img{
+  height:64px !important;      /* aumente/diminua aqui (header tem 84px) */
+  width:auto !important;
+  max-width:none !important;   /* anula o img{max-width:100%} global */
+  max-height:none !important;
+}
+
+@media(max-width:540px){
+  .brand img{height:46px !important}
+}
