@@ -115,9 +115,15 @@ a:hover {
     gap: 24px
 }
 
+.brand {
+    display: block;
+    flex: none;
+}
+
 .brand img {
-    width: 139px;
-    max-height: 67px;
+    height: 64px;
+    width: auto;
+    max-width: none;
     object-fit: contain
 }
 
@@ -1320,7 +1326,7 @@ a:hover {
     }
 
     .brand img {
-        width: 112px
+        height: 46px
     }
 
     .nav-action {
@@ -1480,20 +1486,4 @@ a:hover {
         scroll-behavior: auto !important;
         transition: none !important
     }
-}
-
-/* Logo do header */
-.brand{
-  display:block;
-  flex:none;            /* impede o flex de encolher o link */
-}
-.brand img{
-  height:64px !important;      /* aumente/diminua aqui (header tem 84px) */
-  width:auto !important;
-  max-width:none !important;   /* anula o img{max-width:100%} global */
-  max-height:none !important;
-}
-
-@media(max-width:540px){
-  .brand img{height:46px !important}
 }
