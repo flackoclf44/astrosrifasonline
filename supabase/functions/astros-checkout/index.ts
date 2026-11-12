@@ -9,13 +9,14 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const SUPABASE_URL=Deno.env.get("SUPABASE_URL")||"";
 const SERVICE_KEY=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")||"";
 const PAGBANK_TOKEN=Deno.env.get("PAGBANK_ACCESS_TOKEN")||"";
-const PAGBANK_ENV=Deno.env.get("PAGBANK_ENV")||"";
-const SITE_ORIGIN=Deno.env.get("ALLOWED_SITE_ORIGIN")||"";
-const FUNCTION_URL=(Deno.env.get("PUBLIC_FUNCTION_URL")||"").replace(/\/$/,"");
+const PAGBANK_ENV=Deno.env.get("PAGBANK_ENV")||"sandbox";
+const PAYMENTS_ENABLED=Deno.env.get("ASTROS_PAYMENTS_ENABLED")==="true";
+const SITE_ORIGIN=Deno.env.get("ALLOWED_SITE_ORIGIN")||"https://flackoclf44.github.io";
+const FUNCTION_URL=(Deno.env.get("PUBLIC_FUNCTION_URL")||(SUPABASE_URL?SUPABASE_URL+"/functions/v1/astros-checkout":"")).replace(/\/$/,"");
 const WEBHOOK_PUBLIC_KEY=Deno.env.get("PAGBANK_WEBHOOK_PUBLIC_KEY")||"";
 const PAGBANK_BASE=PAGBANK_ENV==="production"
   ?"https://api.pagseguro.com":"https://sandbox.api.pagseguro.com";
-const IS_CONFIGURED=Boolean(SUPABASE_URL&&SERVICE_KEY&&PAGBANK_TOKEN
+const IS_CONFIGURED=Boolean(PAYMENTS_ENABLED&&SUPABASE_URL&&SERVICE_KEY&&PAGBANK_TOKEN
   &&SITE_ORIGIN&&FUNCTION_URL&&["production","sandbox"].includes(PAGBANK_ENV));
 const db=createClient(SUPABASE_URL || "https://invalid.supabase.co",SERVICE_KEY||"invalid",{
   auth:{persistSession:false,autoRefreshToken:false}
@@ -214,7 +215,8 @@ Deno.serve(async(request)=>{
     "access-control-allow-methods":"GET,POST,OPTIONS",
     "access-control-allow-headers":"content-type",
     "access-control-max-age":"600","vary":"Origin"}});
-  if(!IS_CONFIGURED)return fail("PIX automático ainda não configurado.",503,accepted);
+  if(route==="/health"&&request.method==="GET") return json({service:"ASTROS PagBank Pix",deployed:true,ready:IS_CONFIGURED,environment:PAGBANK_ENV},200,accepted);
+  if(!IS_CONFIGURED)return fail("PIX automático ainda não ativado.",503,accepted);
   if(!webhook&&origin!==SITE_ORIGIN)return fail("Origem não autorizada.",403,accepted);
   try{
     if(webhook&&request.method==="POST")return await handleWebhook(request);
