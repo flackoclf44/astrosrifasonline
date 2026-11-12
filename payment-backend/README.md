@@ -96,3 +96,20 @@ sem confirmação ou baixa automática. Não ative antes de testar.**
 ### Endpoint de diagnóstico
 A função Supabase já está publicada em `https://lrbcyyrczpthkfadngvd.supabase.co/functions/v1/astros-checkout/health`.
 A rota informa `ready:false` enquanto o token ou a ativação estiver ausente. A publicação do endpoint **não ativa cobrança**.
+
+## Testes realizados em 12/11/2026
+
+- Conectividade: token Sandbox aceito pela API de pedidos para consulta de
+  pedido inexistente (HTTP 404).
+- Teste isolado (duas execuções): POST /orders no Sandbox retornou HTTP 201,
+  cobrança WAITING e QR Code PIX gerado. Nenhum número real foi modificado.
+- Consulta GET /orders em Sandbox: HTTP 200. Após 4,5 segundos a cobrança
+  continuava WAITING. A transição real para PAID ainda não foi verificada.
+- Banco: teste reserva / pending / sold / aprovação repetida passou dentro
+  de uma transação ROLLBACK. Nenhuma venda fictícia foi persistida.
+- O endpoint de teste só pode ser usado em Sandbox com vendas desativadas,
+  mediante nonce aleatório de uso único consumido no banco.
+- Pendências: simular/verificar PAID, webhook assinado, fluxo integrado de
+  uma compra pelo checkout, homologação e autorização comercial PagBank.
+
+Até esses passos passarem, mantenha ASTROS_PAYMENTS_ENABLED=false.
