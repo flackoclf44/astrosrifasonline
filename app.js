@@ -4,6 +4,11 @@ const PRICE_CENTS = 250;
 const MAX_TICKETS = 150;
 const SELECT_LIMIT = 20;
 const BLOCKED_NUMBERS = new Set([10, 24]);
+const REMOTE_SOLD = new Set();
+const REMOTE_RESERVED = new Set();
+const REMOTE_BLOCKED = new Set();
+let remoteReady = false;
+const isUnavailable = n => BLOCKED_NUMBERS.has(n) || REMOTE_SOLD.has(n) || REMOTE_RESERVED.has(n) || REMOTE_BLOCKED.has(n);
 const WHATSAPP_NUMBER = '5514991911888';
 const selected = new Set();
 const pad = n => String(n).padStart(3, '0');
@@ -14,14 +19,14 @@ function renderGrid() {
   for (let n=1; n<=MAX_TICKETS; n++) {
     const btn = document.createElement('button');
     btn.type = 'button'; btn.className = 'number'; btn.textContent=pad(n);
-    if (BLOCKED_NUMBERS.has(n)) {
+    if (isUnavailable(n)) {
       btn.disabled = true;
-      btn.title = 'Número indisponível para compra';
+      btn.title = REMOTE_SOLD.has(n) ? 'Número vendido' : REMOTE_RESERVED.has(n) ? 'Número reservado' : 'Número indisponível';
     }
     btn.setAttribute('aria-pressed', String(selected.has(n)));
-    btn.setAttribute('aria-label', `Número ${pad(n)}, ${BLOCKED_NUMBERS.has(n) ? 'indisponível para compra' : selected.has(n) ? 'selecionado' : 'não selecionado'}`);
+    btn.setAttribute('aria-label', `Número ${pad(n)}, ${REMOTE_SOLD.has(n) ? 'vendido' : REMOTE_RESERVED.has(n) ? 'reservado' : isUnavailable(n) ? 'indisponível para compra' : selected.has(n) ? 'selecionado' : 'não selecionado'}`);
     btn.addEventListener('click', () => {
-      if (BLOCKED_NUMBERS.has(n)) return;
+      if (isUnavailable(n)) return;
       if (selected.has(n)) selected.delete(n);
       else if (selected.size<SELECT_LIMIT) selected.add(n);
       else { $('numbersHelp').textContent='Nesta demonstração, selecione no máximo 20 números.'; return; }
@@ -38,7 +43,7 @@ function renderSummary() {
   const container = $('chosenNumbers'); container.replaceChildren();
   if (!nums.length) { const span = document.createElement('span'); span.textContent='Selecione algum número ao lado.'; container.append(span); }
   else for (const n of nums) { const chip=document.createElement('span'); chip.className='chip'; chip.textContent=pad(n); container.append(chip); }
-  $('checkoutBtn').disabled = !nums.length;
+  $('checkoutBtn').disabled = !nums.length || (Boolean(window.ASTROS_CHECKOUT_API) && !remoteReady);
 }
 
 function configurePixPopup() {
@@ -122,6 +127,12 @@ function openWhatsappForSelectedNumbers() {
 function showPreview(){
   const nums=[...selected].sort((a,b)=>a-b);
   if (!nums.length) return;
+  if (window.ASTROS_CHECKOUT_API) {
+    if (window.ASTROS_AUTO_CHECKOUT?.start && remoteReady) {
+      window.ASTROS_AUTO_CHECKOUT.start(nums); return;
+    }
+    $('numbersHelp').textContent='Confirmação da disponibilidade indisponível. Tente novamente.'; return;
+  }
   focusBeforeModal=document.activeElement;
   $('previewNumbers').textContent=nums.map(pad).join(' · ');
   $('previewTotal').textContent=BRL(nums.length*PRICE_CENTS);
@@ -130,7 +141,7 @@ function showPreview(){
 }
 function closePreview() { $('modal').hidden=true; if(focusBeforeModal)focusBeforeModal.focus(); }
 $('randomBtn').addEventListener('click',()=>{
-  const remaining=Array.from({length:MAX_TICKETS},(_,i)=>i+1).filter(n=>!selected.has(n) && !BLOCKED_NUMBERS.has(n));
+  const remaining=Array.from({length:MAX_TICKETS},(_,i)=>i+1).filter(n=>!selected.has(n) && !isUnavailable(n));
   if(!remaining.length||selected.size>=SELECT_LIMIT)return;
   const randomBytes=new Uint32Array(1);
   if (typeof crypto!=='undefined' && crypto.getRandomValues) crypto.getRandomValues(randomBytes);
@@ -144,6 +155,41 @@ $('modalClose').addEventListener('click',closePreview);
 $('previewClose').addEventListener('click',openWhatsappForSelectedNumbers);
 $('modal').addEventListener('click',e=>{if(e.target===$('modal'))closePreview();});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('modal').hidden)closePreview();});
+// Interface utilizada apenas pela integração segura quando configurada.
+window.ASTROS_RAFFLE_UI = {
+  setAvailability(tickets) {
+    if (!Array.isArray(tickets) || tickets.length !== MAX_TICKETS) return false;
+    REMOTE_SOLD.clear(); REMOTE_RESERVED.clear(); REMOTE_BLOCKED.clear();
+    let available=0;
+    for(const ticket of tickets) {
+      const n=Number(ticket.number);
+      if(!Number.isInteger(n)||n<1||n>MAX_TICKETS)return false;
+      if(ticket.status==='sold')REMOTE_SOLD.add(n);
+      else if(ticket.status==='reserved')REMOTE_RESERVED.add(n);
+      else if(ticket.status==='blocked')REMOTE_BLOCKED.add(n);
+      else if(ticket.status==='available')available++;
+      else return false;
+    }
+    remoteReady=true;
+    for(const n of selected)if(isUnavailable(n))selected.delete(n);
+    $('statAvailable').textContent=available;
+    $('statSold').textContent=REMOTE_SOLD.size;
+    $('statReserved').textContent=REMOTE_RESERVED.size;
+    $('statAvailable').nextElementSibling.textContent='NÚMEROS DISPONÍVEIS';
+    $('statSold').nextElementSibling.textContent='VENDIDOS COM PAGAMENTO CONFIRMADO';
+    $('statReserved').nextElementSibling.textContent='RESERVADOS TEMPORARIAMENTE';
+    $('checkoutNote').textContent='Os números são baixados somente após confirmação do PIX pelo provedor.';
+    $('numbersHelp').textContent='';
+    renderGrid(); renderSummary();
+    return true;
+  },
+  setUnavailable() {
+    remoteReady=false;
+    $('checkoutBtn').disabled=true;
+    $('numbersHelp').textContent='Não foi possível confirmar os números disponíveis. Tente novamente em instantes.';
+  },
+  clearSelection() {selected.clear();renderGrid();renderSummary();}
+};
 configurePixPopup();
 $('statAvailable').textContent = MAX_TICKETS - BLOCKED_NUMBERS.size;
 $('statAvailable').nextElementSibling.textContent = 'NÚMEROS NÃO BLOQUEADOS';
