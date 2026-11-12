@@ -3,6 +3,7 @@ const $ = (id) => document.getElementById(id);
 const PRICE_CENTS = 250;
 const MAX_TICKETS = 150;
 const SELECT_LIMIT = 20;
+const WHATSAPP_NUMBER = '5514991911888';
 const selected = new Set();
 const pad = n => String(n).padStart(3, '0');
 const BRL = cents => new Intl.NumberFormat('pt-BR', {style:'currency',currency:'BRL'}).format(cents/100);
@@ -33,6 +34,40 @@ function renderSummary() {
   else for (const n of nums) { const chip=document.createElement('span'); chip.className='chip'; chip.textContent=pad(n); container.append(chip); }
   $('checkoutBtn').disabled = !nums.length;
 }
+
+function configurePixPopup() {
+  $('modalTitle').innerHTML = 'PAGUE COM O <em>PIX</em>';
+  const imageArea = document.createElement('div');
+  imageArea.className = 'astros-pix-image';
+  const image = document.createElement('img');
+  image.src = 'images/pix-astros.svg';
+  image.alt = 'QR Code PIX da ASTROS para escanear no aplicativo bancário';
+  image.width = 838;
+  image.height = 843;
+  imageArea.appendChild(image);
+  const instruction = document.createElement('p');
+  instruction.textContent = 'Escaneie o QR Code usando o aplicativo do seu banco. Após o pagamento, envie o comprovante pelo WhatsApp.';
+  instruction.className = 'astros-pix-instruction';
+  imageArea.appendChild(instruction);
+  $('previewTotal').closest('p').after(imageArea);
+  const oldCaption = [...$('modal').querySelectorAll('p')].find(p => p.textContent.trim() === 'ASTROS.');
+  if(oldCaption) oldCaption.remove();
+  const styles = document.createElement('style');
+  styles.textContent = `
+    .astros-pix-image { margin: 18px 0 20px; text-align: center; }
+    .astros-pix-image img { display:block; width:min(100%,330px); height:auto; margin:auto; background:#fff; border-radius:12px; }
+    .modal .astros-pix-instruction { margin:12px auto 0; max-width:380px; color:#b7b7c0; font-size:12px; line-height:1.6; }
+    @media(max-width:540px) { .astros-pix-image {margin:14px 0 16px;} .astros-pix-image img{width:min(100%,300px);} }
+  `;
+  document.head.appendChild(styles);
+}
+function openWhatsappForSelectedNumbers() {
+  const nums = [...selected].sort((a,b)=>a-b);
+  if(!nums.length) return;
+  const message = 'Olá, estou participando da Rifa da Astros, meus numeros são: ' + nums.map(pad).join(', ');
+  window.open('https://wa.me/' + WHATSAPP_NUMBER + '?text=' + encodeURIComponent(message), '_blank', 'noopener,noreferrer');
+}
+
 function showPreview(){
   const nums=[...selected].sort((a,b)=>a-b);
   if (!nums.length) return;
@@ -55,7 +90,8 @@ $('randomBtn').addEventListener('click',()=>{
 $('clearBtn').addEventListener('click',()=>{selected.clear();renderGrid();renderSummary();});
 $('checkoutBtn').addEventListener('click',showPreview);
 $('modalClose').addEventListener('click',closePreview);
-$('previewClose').addEventListener('click',closePreview);
+$('previewClose').addEventListener('click',openWhatsappForSelectedNumbers);
 $('modal').addEventListener('click',e=>{if(e.target===$('modal'))closePreview();});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('modal').hidden)closePreview();});
+configurePixPopup();
 renderGrid(); renderSummary();
