@@ -26,25 +26,47 @@ const PAGBANK_BASE=PAGBANK_ENV==="production"
   ?"https://api.pagseguro.com":"https://sandbox.api.pagseguro.com";
 const IS_CONFIGURED=Boolean(PAYMENTS_ENABLED&&SUPABASE_URL&&SERVICE_KEY&&PAGBANK_TOKEN
   &&SITE_ORIGIN&&FUNCTION_URL&&["production","sandbox"].includes(PAGBANK_ENV));
-let sandboxProbeCache:{time:number;status:number|null;ok:boolean}|null=null;
+let sandboxProbeCache:{time:number;status:number|null;fallbackStatus:number|null;ok:boolean;networkError:boolean}|null=null;
 async function sandboxConnectionProbe() {
-  if (PAGBANK_ENV!=="sandbox") return {sandbox:false,tokenConfigured:Boolean(PAGBANK_TOKEN),connectionOk:false,reason:"Utilize somente Sandbox"};
-  if (!PAGBANK_TOKEN) return {sandbox:true,tokenConfigured:false,connectionOk:false,reason:"Token ainda não configurado"};
-  if (!sandboxProbeCache || Date.now()-sandboxProbeCache.time>300_000) {
+  if(PAGBANK_ENV!=="sandbox")
+    return {sandbox:false,tokenConfigured:Boolean(PAGBANK_TOKEN),connectionOk:false,
+      diagnosis:"Ambiente configurado não é Sandbox."};
+  if(!PAGBANK_TOKEN)
+    return {sandbox:true,tokenConfigured:false,connectionOk:false,
+      diagnosis:"PAGBANK_ACCESS_TOKEN não foi encontrada nos Secrets do Supabase."};
+  if(!sandboxProbeCache||Date.now()-sandboxProbeCache.time>60_000){
+    let status:number|null=null, fallbackStatus:number|null=null;
+    let ok=false,networkError=false;
+    const headers={"Accept":"application/json","Authorization":"Bearer "+PAGBANK_TOKEN};
     try {
-      const response=await fetch("https://sandbox.api.pagseguro.com/public-keys?type=webhook", {
-        headers:{"Accept":"application/json","Authorization":"Bearer "+PAGBANK_TOKEN},
-        signal:AbortSignal.timeout(8000)
-      });
-      // Não devolve corpo, token, chave pública nem detalhes sensíveis.
-      sandboxProbeCache={time:Date.now(),status:response.status,ok:response.ok};
-    } catch (_e) {
-      sandboxProbeCache={time:Date.now(),status:null,ok:false};
-    }
+      const primary=await fetch(PAGBANK_BASE+"/public-keys?type=webhook",{
+        headers,signal:AbortSignal.timeout(8000)});
+      status=primary.status;
+      ok=primary.ok;
+      // O PagBank também documenta a variante /public-keys/{type}.
+      if(!ok && (status===400||status===404)){
+        const fallback=await fetch(PAGBANK_BASE+"/public-keys/webhook",{
+          headers,signal:AbortSignal.timeout(8000)});
+        fallbackStatus=fallback.status;
+        ok=fallback.ok;
+      }
+    }catch(_error){networkError=true;}
+    sandboxProbeCache={time:Date.now(),status,fallbackStatus,ok,networkError};
   }
-  return {sandbox:true,tokenConfigured:true,connectionOk:sandboxProbeCache.ok,
-    httpStatus:sandboxProbeCache.status,
-    note:"Sonda somente a consulta de chave pública, sem criar cobrança Pix"};
+  const check=sandboxProbeCache;
+  const statuses=[check.status,check.fallbackStatus].filter(v=>v!==null);
+  let diagnosis="A consulta da chave pública de webhook não confirmou a conexão. O token pode estar válido mesmo assim.";
+  if(check.ok)diagnosis="A API de chaves públicas do PagBank respondeu corretamente.";
+  else if(check.networkError)diagnosis="Falha de rede ou tempo limite ao acessar o PagBank.";
+  else if(statuses.includes(401)||statuses.includes(403))
+    diagnosis="O PagBank rejeitou o acesso ou a conta não tem permissão para esta API. Confira o token Sandbox.";
+  else if(statuses.includes(404))
+    diagnosis="A chave pública de webhook pode não ter sido criada nesta conta. Isso NÃO comprova token inválido.";
+  else if(statuses.includes(400))
+    diagnosis="A API recusou o formato da consulta. Isso não comprova token inválido.";
+  return {sandbox:true,tokenConfigured:true,connectionOk:check.ok,
+    httpStatus:check.status,fallbackStatus:check.fallbackStatus,diagnosis,
+    noPixCreated:true};
 }
 
 const db=createClient(SUPABASE_URL || "https://invalid.supabase.co",SERVICE_KEY||"invalid",{
