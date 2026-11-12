@@ -345,6 +345,12 @@ async function sandboxCheckStatus(request:Request){
 async function sandboxWebhook(request:Request) {
   if(PAGBANK_ENV!=="sandbox"||PAYMENTS_ENABLED)
     return fail("Webhook de teste desligado.",403);
+  // Loga apenas o TIPO de assinatura. Nunca registra valores ou payload de clientes.
+  console.info("ASTROS_WEBHOOK_AUTH_METHOD",JSON.stringify({
+    ecdsa:Boolean(request.headers.get("x-payload-signature")),
+    legacy:Boolean(request.headers.get("x-authenticity-token")),
+    type:request.headers.get("x-product-origin")==="ORDER"?"ORDER":"other"
+  }));
   const raw=await request.text();
   if(raw.length>100000)return fail("Notificação extensa demais.",413);
   if(!await webhookValid(request,raw))return fail("Assinatura inválida.",401);
