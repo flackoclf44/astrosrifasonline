@@ -17,6 +17,7 @@ try {
 }
 const SERVICE_KEY=primarySecret||Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")||"";
 const PAGBANK_TOKEN=Deno.env.get("PAGBANK_ACCESS_TOKEN")||"";
+const GOOGLE_RECAPTCHA_SECRET_KEY=Deno.env.get("GOOGLE_RECAPTCHA_SECRET_KEY")||"";
 const PAGBANK_ENV=Deno.env.get("PAGBANK_ENV")||"sandbox";
 const PAYMENTS_ENABLED=Deno.env.get("ASTROS_PAYMENTS_ENABLED")==="true";
 const SITE_ORIGIN=Deno.env.get("ALLOWED_SITE_ORIGIN")||"https://flackoclf44.github.io";
@@ -25,7 +26,7 @@ const WEBHOOK_PUBLIC_KEY=Deno.env.get("PAGBANK_WEBHOOK_PUBLIC_KEY")||"";
 const PAGBANK_BASE=PAGBANK_ENV==="production"
   ?"https://api.pagseguro.com":"https://sandbox.api.pagseguro.com";
 const IS_CONFIGURED=Boolean(PAYMENTS_ENABLED&&SUPABASE_URL&&SERVICE_KEY&&PAGBANK_TOKEN
-  &&SITE_ORIGIN&&FUNCTION_URL&&["production","sandbox"].includes(PAGBANK_ENV));
+  &&GOOGLE_RECAPTCHA_SECRET_KEY&&SITE_ORIGIN&&FUNCTION_URL&&["production","sandbox"].includes(PAGBANK_ENV));
 let sandboxProbeCache:{
   time:number;
   ordersStatus:number|null;
@@ -126,6 +127,38 @@ const result=(order:any,showPix=false)=>({
   status:order.status,expiresAt:order.reservation_expires_at,
   ...(showPix?{pixCode:order.pix_payload,qrBase64:order.pix_image_base64}:{})
 });
+// Google reCAPTCHA v2 (caixa "Não sou um robô"), verificação no servidor.
+// Nunca confie no CAPTCHA só porque o navegador mostra a caixa marcada.
+async function verifyGoogleRecaptcha(value:unknown):Promise<boolean>{
+  if(!GOOGLE_RECAPTCHA_SECRET_KEY) return false;
+  if(typeof value!=="string" || value.length<20 || value.length>8192) return false;
+  const params=new URLSearchParams({
+    secret:GOOGLE_RECAPTCHA_SECRET_KEY,
+    response:value
+  });
+  try{
+    const result=await fetch("https://www.google.com/recaptcha/api/siteverify",{
+      method:"POST",
+      headers:{"Content-Type":"application/x-www-form-urlencoded"},
+      body:params.toString(),
+      signal:AbortSignal.timeout(7000)
+    });
+    if(!result.ok)return false;
+    const data=await result.json();
+    // Confirma que o desafio é deste site. SiteVerify rejeita tokens
+    // expirados e já utilizados; cada compra exige um desafio novo.
+    const expectedHost=new URL(SITE_ORIGIN).hostname.toLowerCase();
+    return data?.success===true
+      &&String(data.hostname||"").toLowerCase()===expectedHost
+      &&Number.isFinite(Date.parse(data.challenge_ts||""))
+      &&(Date.now()-Date.parse(data.challenge_ts))>=-60_000
+      &&(Date.now()-Date.parse(data.challenge_ts))<=120_000;
+  }catch(_e){
+    // Falhar fechado. Não registrar token nem chave privada nos logs.
+    return false;
+  }
+}
+
 function parseNumbers(v:unknown) {
   if(!Array.isArray(v)||v.length<1||v.length>20)throw Error("Escolha de 1 a 20 números.");
   if(v.some(x=>typeof x!=="number"||!Number.isInteger(x)||x<1||x>150)
@@ -481,7 +514,7 @@ Deno.serve(async(request)=>{
     "access-control-allow-methods":"GET,POST,OPTIONS",
     "access-control-allow-headers":"content-type",
     "access-control-max-age":"600","vary":"Origin"}});
-  if(route==="/health"&&request.method==="GET") return json({service:"ASTROS PagBank Pix",deployed:true,ready:IS_CONFIGURED,environment:PAGBANK_ENV,tokenConfigured:Boolean(PAGBANK_TOKEN),databaseConfigured:Boolean(SUPABASE_URL&&SERVICE_KEY),paymentsEnabled:PAYMENTS_ENABLED},200,accepted);
+  if(route==="/health"&&request.method==="GET") return json({service:"ASTROS PagBank Pix",deployed:true,ready:IS_CONFIGURED,environment:PAGBANK_ENV,tokenConfigured:Boolean(PAGBANK_TOKEN),databaseConfigured:Boolean(SUPABASE_URL&&SERVICE_KEY),paymentsEnabled:PAYMENTS_ENABLED,recaptchaSecretConfigured:Boolean(GOOGLE_RECAPTCHA_SECRET_KEY)},200,accepted);
   if(route==="/sandbox-check"&&request.method==="GET") {
     return json(await sandboxConnectionProbe(),200,accepted);
   }
@@ -514,7 +547,7 @@ Deno.serve(async(request)=>{
       return json(result(local),200,accepted);
     }
     if(route==="/checkout"&&request.method==="POST"){
-      if(Number(request.headers.get("content-length")||"0")>4096)
+      if(Number(request.headers.get("content-length")||"0")>12288)
         return fail("Requisição grande demais.",413,accepted);
       const data=await request.json();
       const numbers=parseNumbers(data.numbers);
@@ -523,6 +556,11 @@ Deno.serve(async(request)=>{
       const cpf=toDigits(data.cpf);
       if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||email.length>254||!cpfValid(cpf))
         return fail("Informe e-mail e CPF válidos.",400,accepted);
+      // CAPTCHA validado ANTES da reserva e ANTES da criação do PIX.
+      // Um token ausente, expirado, inválido, de outro domínio ou reutilizado
+      // impede a compra, mesmo que o cliente chame a API diretamente.
+      if(!(await verifyGoogleRecaptcha(data.recaptchaToken)))
+        return fail("Confirme que você não é um robô e tente novamente.",403,accepted);
       const {data:internalId,error:reserveError}=await db.rpc("astros_reserve",{
         p_numbers:numbers,p_email:email
       });
