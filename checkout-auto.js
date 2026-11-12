@@ -62,6 +62,11 @@
     area.append(p("Números: "+numbers.map(fmt).join(" · ")));
     area.append(p("Total: "+price(numbers.length*250)));
     area.append(p("Informe os dados do pagador para gerar um PIX exclusivo e verificável.","autoPixHint"));
+    const nameLabel=document.createElement("label");
+    nameLabel.textContent="NOME COMPLETO";nameLabel.htmlFor="autoPayerName";
+    const name=document.createElement("input");
+    name.id="autoPayerName";name.type="text";name.autocomplete="name";name.maxLength=120;
+    name.placeholder="Nome e sobrenome";
     const emailLabel=document.createElement("label");
     emailLabel.textContent="E-MAIL";emailLabel.htmlFor="autoPayerEmail";
     const email=document.createElement("input");
@@ -72,14 +77,16 @@
     cpf.id="autoPayerCpf";cpf.inputMode="numeric";cpf.placeholder="Somente números";cpf.maxLength=14;
     const error=p("","form-error");
     const pay=btn("GERAR PIX",async()=>{
+      const fullname=name.value.trim().replace(/\s+/g," ");
       const entered=email.value.trim();
       const doc=cpf.value.replace(/\D/g,"");
-      if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(entered)||doc.length!==11){
-        error.textContent="Confira o e-mail e o CPF.";return;
+      if(fullname.length<3||!fullname.includes(" ")||
+         !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(entered)||doc.length!==11){
+        error.textContent="Confira nome completo, e-mail e CPF.";return;
       }
       pay.disabled=true;pay.textContent="GERANDO PIX...";
       try{
-        const order=await req("/checkout",{method:"POST",body:JSON.stringify({numbers,email:entered,cpf:doc})});
+        const order=await req("/checkout",{method:"POST",body:JSON.stringify({numbers,name:fullname,email:entered,cpf:doc})});
         currentOrder=order.orderId;
         showPix(order);
         startPolling();
@@ -90,7 +97,7 @@
         await updateAvailability();
       }
     });
-    area.append(emailLabel,email,cpfLabel,cpf,error,pay);
+    area.append(nameLabel,name,emailLabel,email,cpfLabel,cpf,error,pay);
   }
   function showPix(order){
     const area=createModal("PAGUE COM O PIX");
