@@ -133,3 +133,52 @@ Até esses passos passarem, mantenha ASTROS_PAYMENTS_ENABLED=false.
 
 **Não habilitar ASTROS_PAYMENTS_ENABLED nem configurar checkout-config.js para
 transações reais sem passar pela homologação e pelos testes completos.**
+
+
+## Google reCAPTCHA v2 gratuito — proteção antibots no checkout
+
+Implementado em 12/11/2026. Para uso efetivo, é necessário cadastrar duas chaves
+no console Google e ativar o checkout somente após terminar os demais testes.
+
+**Plano:** Google reCAPTCHA Essentials, gratuito até 10 mil verificações/mês
+(consulte as condições atuais em https://cloud.google.com/security/products/recaptcha).
+
+### Criar a chave
+1. Acesse https://www.google.com/recaptcha/admin/create ou
+   https://console.cloud.google.com/security/recaptcha e entre com sua conta Google.
+2. Crie uma chave para site Web, tipo reCAPTCHA v2, Checkbox (Não sou um robô).
+3. Nome: ASTROS Checkout; domínio permitido: flackoclf44.github.io
+   (somente o domínio, sem https:// e sem /astrosrifasonline/).
+4. Copie a chave pública (site key) e a chave secreta legada (legacy secret key).
+   No console Google Cloud, a secret key pode estar em Integração > chave legada.
+
+### Onde cada chave vai
+- CHAVE PÚBLICA: arquivo `checkout-config.js` no GitHub Pages:
+  `window.ASTROS_RECAPTCHA_SITE_KEY = "SUA_CHAVE_PUBLICA";`
+- CHAVE SECRETA: Supabase > projeto astros-rifa > Edge Functions > Secrets.
+  Nome: `GOOGLE_RECAPTCHA_SECRET_KEY`. Valor: sua chave secreta.
+  NUNCA a publique no GitHub, nem a envie em chat, screenshots ou HTML.
+
+### Regras de segurança implementadas
+- A caixa reCAPTCHA é carregada no checkout automático, antes de gerar o PIX.
+- O botão GERAR PIX fica inativo até a validação do desafio.
+- O navegador envia `recaptchaToken` junto com o pedido; o servidor usa
+  Google SiteVerify do reCAPTCHA v2 para validar sucesso, domínio e validade.
+- A validação ocorre ANTES de reservar números no banco e criar cobranças.
+- Ausência/erro de token ou chave secreta, desafio expirado, falha do Google
+  e token reutilizado fazem o servidor rejeitar a compra (fail closed).
+- Após erro de checkout, o desafio é redefinido para exigir novo token.
+- A rota /health informa apenas se a secret key está configurada,
+  sem exibir o valor dela.
+
+IMPORTANTE: o site público ainda está em demonstração, pois
+`window.ASTROS_CHECKOUT_API = ""` em checkout-config.js e
+`ASTROS_PAYMENTS_ENABLED=false` nos Secrets do Supabase.
+A caixinha reCAPTCHA NÃO estará ativa até cadastrar a chave pública
+e habilitar o checkout seguro. Não declarar "reCAPTCHA ativo" na homologação
+antes de testar visualmente a caixa e validar uma tentativa de compra.
+
+Documentação oficial:
+- https://developers.google.com/recaptcha/docs/display
+- https://docs.cloud.google.com/recaptcha/docs/verify
+- https://docs.cloud.google.com/recaptcha/docs/create-key-website
