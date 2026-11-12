@@ -112,12 +112,28 @@ a:hover {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 24px
-    /* display: grid;
-    grid-template-columns: 1fr auto 1fr; */
+    gap: 24px;
 }
 
-/* .brand { justify-self: center; order: 2; }
+/* O logo original tem margens transparentes; esta janela enquadra apenas a marca. */
+.brand {
+    display: block;
+    position: relative;
+    flex: 0 0 180px;
+    width: 180px;
+    height: 80px;
+    overflow: hidden;
+}
+.brand img {
+    position: absolute;
+    max-width: none;
+    width: 285px;
+    height: 285px;
+    left: 50%;
+    top: 50%;
+    object-fit: contain;
+    transform: translate(-50%, calc(-50% + 15px));
+}
 .nav { order: 1; }
 .nav-action { order: 3; justify-self: end; } */
 
@@ -376,28 +392,38 @@ a:hover {
     background: #e8e8e8;
     color: #101013;
     overflow: hidden;
-    height: 52px;
+    height: 58px;
     display: flex;
     align-items: center;
-    font: 900 23px/1 Impact, 'Arial Narrow', sans-serif;
-    letter-spacing: .045em;
-    white-space: nowrap
+    font: 900 clamp(19px, 2.2vw, 25px)/1 Impact, 'Arial Narrow', sans-serif;
+    letter-spacing: .075em;
+    white-space: nowrap;
 }
-
-.ticker div {
-    min-width: max-content;
-    animation: travel 28s linear infinite
+.ticker-track {
+    display: flex;
+    align-items: center;
+    width: max-content;
+    animation: ticker-scroll 33s linear infinite;
+    will-change: transform;
 }
-
-.ticker span {
-    margin: 0 22px;
-    font: 20px Arial
+.ticker-group {
+    display: flex;
+    align-items: center;
+    flex: none;
+    gap: clamp(18px, 2.5vw, 36px);
+    padding-right: clamp(18px, 2.5vw, 36px);
 }
-
-@keyframes travel {
-    to {
-        transform: translateX(-35%)
-    }
+.ticker-group span {
+    display: inline-flex;
+    align-items: center;
+    flex: none;
+}
+.ticker-group .ticker-star {
+    font: 900 .9em/1 Arial, Helvetica, sans-serif;
+    letter-spacing: 0;
+}
+@keyframes ticker-scroll {
+    to { transform: translateX(-50%); }
 }
 
 .overline {
@@ -1333,8 +1359,8 @@ a:hover {
         height: 63px
     }
 
-    .brand { height: 63px; }
-    .brand img { transform: scale(1.8); }
+    .brand { flex-basis: 140px; width: 140px; height: 61px; }
+    .brand img { width: 225px; height: 225px; transform: translate(-50%, calc(-50% + 11px)); }
 
     .nav-action {
         padding: 11px;
@@ -1479,9 +1505,7 @@ a:hover {
         padding: 22px
     }
 
-    .ticker {
-        font-size: 20px
-    }
+    .ticker { font-size: 20px; height: 52px; }
 }
 
 @media(prefers-reduced-motion:reduce) {
