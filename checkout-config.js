@@ -6,4 +6,4 @@ window.ASTROS_CHECKOUT_API = "";
 // reCAPTCHA v2 do Google: somente a CHAVE PUBLICA do site, emitida para flackoclf44.github.io.
 // Chave pública do site configurada em 12/11/2026.
 // A chave SECRETA vai somente para GOOGLE_RECAPTCHA_SECRET_KEY nos Secrets do Supabase.
-window.ASTROS_RECAPTCHA_SITE_KEY = "6LftThwuAAAAAPft5aVhIOHQIIGtgpoMugrimNgT";
+window.ASTROS_RECAPTCHA_SITE_KEY = "6LezVBwuAAAAAFNX5jFay78Im-xo1n2-pYdrdfW8";
