@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#09090b">
+  <title>ASTROS | Teste do reCAPTCHA</title>
+  <link href="images/logo.png" rel="icon" type="image/png">
+  <style>
+    :root{color-scheme:dark;font-family:Arial,Helvetica,sans-serif}
+    *{box-sizing:border-box}
+    body{margin:0;background:#09090b;color:#fafafa;min-height:100vh;display:grid;place-items:center;padding:20px}
+    main{width:min(100%,480px);background:#17171a;border:1px solid #333338;border-radius:20px;padding:30px}
+    .logo{display:block;width:154px;height:65px;object-fit:contain;margin:0 auto 20px}
+    h1{font-size:1.5rem;line-height:1.2;margin:0 0 12px;text-align:center}
+    p{color:#b9b9c2;line-height:1.6;font-size:.93rem}
+    .captcha{margin:24px auto;display:flex;justify-content:center;min-height:78px}
+    .status{margin:17px 0 0;padding:14px;border-radius:10px;background:#222227;border:1px solid #3c3c44;min-height:65px}
+    .status[role=status]{color:#e4e4e8}
+    button{width:100%;border:0;border-radius:10px;font-weight:800;padding:15px;font-size:1rem;background:#eee;color:#111;cursor:pointer}
+    button:disabled{cursor:not-allowed;opacity:.4}
+    a{color:#eee}
+    .small{font-size:.8rem;margin:20px 0 0}
+  </style>
+  <script defer src="checkout-config.js?v=google-recaptcha-key-20261112"></script>
+</head>
+<body>
+<main>
+  <img class="logo" src="images/logo-astros-header.svg?v=20261111-logo2" alt="ASTROS">
+  <h1>Teste do Google reCAPTCHA</h1>
+  <p>Verifique que a caixa <strong>“Não sou um robô”</strong> está funcionando. O Google validará o desafio no servidor da ASTROS. <strong>Este teste não gera PIX e não reserva números.</strong></p>
+  <div id="recaptcha-container" class="captcha"></div>
+  <button id="check" type="button" disabled>Validar proteção</button>
+  <div id="status" class="status" role="status" aria-live="polite">Carregando a proteção do Google…</div>
+  <p class="small"><a href="index.html">Voltar ao site ASTROS</a></p>
+</main>
+<script>
+  "use strict";
+  (function(){
+    const status=document.getElementById("status");
+    const button=document.getElementById("check");
+    const host=document.getElementById("recaptcha-container");
+    const API="https://lrbcyyrczpthkfadngvd.supabase.co/functions/v1/astros-checkout/recaptcha-test";
+    let widget=null;
+    function report(message){status.textContent=message;}
+    function initialize(){
+      const siteKey=String(window.ASTROS_RECAPTCHA_SITE_KEY||"").trim();
+      if(!siteKey){report("Chave pública do Google não configurada.");return;}
+      if(!window.grecaptcha||typeof grecaptcha.render!=="function"){
+        report("Não foi possível carregar o Google reCAPTCHA.");return;
+      }
+      try{
+        widget=grecaptcha.render(host,{
+          sitekey:siteKey,
+          theme:"dark",
+          size:window.innerWidth<370?"compact":"normal",
+          callback:()=>{button.disabled=false;report('Desafio concluído. Clique em "Validar proteção".');},
+          "expired-callback":()=>{button.disabled=true;report("O desafio expirou. Marque novamente.");},
+          "error-callback":()=>{button.disabled=true;report("Erro no reCAPTCHA. Atualize a página para tentar novamente.");}
+        });
+        report("Marque a caixa Não sou um robô acima.");
+      }catch(err){report("Não foi possível iniciar o reCAPTCHA. Confira o domínio registrado no Google.");}
+    }
+    async function verify(){
+      const token=widget===null?"":grecaptcha.getResponse(widget);
+      if(!token){button.disabled=true;report("Marque Não sou um robô novamente.");return;}
+      button.disabled=true;
+      report("Verificando com o Google pelo Supabase…");
+      try{
+        const r=await fetch(API,{
+          method:"POST",
+          headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({recaptchaToken:token}),
+          cache:"no-store"
+        });
+        const data=await r.json();
+        if(r.ok&&data.valid===true){
+          report("✓ reCAPTCHA VALIDADO no servidor! A proteção da ASTROS está funcionando.");
+        }else{
+          report("O reCAPTCHA não foi validado. "+String(data.message||data.error||"Verifique as chaves do Google."));
+        }
+      }catch(error){
+        report("Não foi possível contatar o Supabase. Verifique sua conexão e tente novamente.");
+      }finally{
+        if(widget!==null&&window.grecaptcha){
+          grecaptcha.reset(widget);
+          button.disabled=true;
+        }
+      }
+    }
+    button.addEventListener("click",verify);
+    const script=document.createElement("script");
+    script.src="https://www.google.com/recaptcha/api.js?render=explicit&hl=pt-BR";
+    script.async=true;
+    script.defer=true;
+    script.onload=()=>window.grecaptcha?.ready(initialize);
+    script.onerror=()=>report("Não foi possível carregar o Google reCAPTCHA. Desative bloqueadores apenas se confiar no site.");
+    document.head.appendChild(script);
+  })();
+</script>
+</body>
+</html>
