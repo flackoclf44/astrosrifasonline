@@ -49,6 +49,45 @@ function configurePixPopup() {
   instruction.textContent = 'Escaneie o QR Code usando o aplicativo do seu banco. Após o pagamento, envie o comprovante pelo WhatsApp.';
   instruction.className = 'astros-pix-instruction';
   imageArea.appendChild(instruction);
+  const pixKeyArea = document.createElement('div');
+  pixKeyArea.className = 'astros-pix-key';
+  const pixLabel = document.createElement('label');
+  pixLabel.textContent = 'CHAVE PIX (CNPJ)';
+  pixLabel.htmlFor = 'astrosPixKeyInput';
+  pixKeyArea.appendChild(pixLabel);
+  const pixKeyRow = document.createElement('div');
+  pixKeyRow.className = 'astros-pix-key-row';
+  const pixInput = document.createElement('input');
+  pixInput.id = 'astrosPixKeyInput';
+  pixInput.type = 'text';
+  pixInput.value = '50368231000120';
+  pixInput.readOnly = true;
+  pixInput.setAttribute('aria-label', 'Chave Pix CNPJ: 50368231000120');
+  const copyButton = document.createElement('button');
+  copyButton.type = 'button';
+  copyButton.className = 'astros-pix-copy';
+  copyButton.textContent = 'COPIAR';
+  copyButton.setAttribute('aria-label', 'Copiar chave Pix');
+  copyButton.addEventListener('click', async () => {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(pixInput.value);
+      } else {
+        pixInput.select();
+        if (!document.execCommand('copy')) throw new Error('Cópia indisponível');
+        pixInput.setSelectionRange(0, 0);
+      }
+      copyButton.textContent = 'COPIADO!';
+      setTimeout(() => { copyButton.textContent = 'COPIAR'; }, 2200);
+    } catch (_) {
+      pixInput.focus();
+      pixInput.select();
+      copyButton.textContent = 'SELECIONE E COPIE';
+    }
+  });
+  pixKeyRow.append(pixInput, copyButton);
+  pixKeyArea.appendChild(pixKeyRow);
+  imageArea.appendChild(pixKeyArea);
   $('previewTotal').closest('p').after(imageArea);
   const oldCaption = [...$('modal').querySelectorAll('p')].find(p => p.textContent.trim() === 'ASTROS.');
   if(oldCaption) oldCaption.remove();
@@ -57,6 +96,12 @@ function configurePixPopup() {
     .astros-pix-image { margin: 18px 0 20px; text-align: center; }
     .astros-pix-image img { display:block; width:min(100%,330px); height:auto; margin:auto; background:#fff; border-radius:12px; }
     .modal .astros-pix-instruction { margin:12px auto 0; max-width:380px; color:#b7b7c0; font-size:12px; line-height:1.6; }
+    .astros-pix-key { margin: 17px auto 0; max-width: 380px; text-align: left; }
+    .modal .astros-pix-key label { margin:0 0 7px; color:#d8d8df; font-size:11px; font-weight:900; letter-spacing:.08em; }
+    .astros-pix-key-row { display:flex; gap:8px; }
+    .modal .astros-pix-key-row input { min-width:0; flex:1; margin:0; padding:12px; font-weight:700; color:#fff; }
+    .astros-pix-copy { border:0; padding:0 13px; background:#eee; color:#141418; font-weight:900; font-size:11px; cursor:pointer; }
+    .astros-pix-copy:focus-visible { outline:2px solid #fff; outline-offset:3px; }
     @media(max-width:540px) { .astros-pix-image {margin:14px 0 16px;} .astros-pix-image img{width:min(100%,300px);} }
   `;
   document.head.appendChild(styles);
