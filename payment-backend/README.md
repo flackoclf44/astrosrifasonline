@@ -1,83 +1,92 @@
-# ASTROS — PIX automático e baixa dos números
+# ASTROS — PIX automático com PagBank
 
-## Estado: sistema preparado, mas NÃO ativado
+## Situação: código preparado, pagamentos reais NÃO ativados
 
-GitHub Pages é um site estático. Ele não pode consultar o banco nem validar o PIX sozinho.
-Para operar: GitHub Pages (visual), Supabase (API + banco), Mercado Pago (PIX e webhooks).
+O PagBank será o provedor PIX. O site permanece no GitHub Pages, com o backend
+no Supabase (Edge Functions + PostgreSQL). O QR Code fixo antigo não permite
+conciliar pagamentos individuais. No modo automático cada pedido gera um QR único.
 
-**Antes de ligar o pagamento real, confirme a autorização aplicável à campanha e se o
-intermediador de pagamentos aceita esse tipo de operação.**
+### Recursos preparados
+- Banco com 150 números, incluindo 010 e 024 previamente bloqueados.
+- Reserva transacional que impede duas compras simultâneas do mesmo número.
+- PIX exclusivo por pedido no PagBank pelo endpoint `POST /orders`, método `PIX`.
+- Consulta autenticada do pedido no PagBank (`GET /orders/{order_id}`).
+- Só altera reservado para vendido após confirmar uma cobrança `PAID`,
+  `payment_method.type=PIX`, BRL, valor correto e referência do pedido.
+- Webhooks de status com validação de assinatura; conciliação periódica.
+- Se o PIX não foi pago e o provedor confirma o cancelamento, libera o número.
+- Se ocorrer divergência, mantém reservado/em análise para evitar venda duplicada.
 
-## O que foi preparado
+### Primeiro: aprovação comercial e técnica
+Antes de ativar vendas, confirme que a campanha tem a autorização exigida, que
+o PagBank permite esse tipo de campanha no contrato da conta recebedora e que
+a API Order PIX está habilitada (eventual homologação/allowlist).
+Se houver mais de uma chave PIX no PagBank, o PagBank pode escolher uma chave
+aleatória ativa. Confira a titularidade da conta antes de oferecer pagamentos.
 
-- Reserva atômica e exclusiva de 1 a 20 números, impedindo duas reservas simultâneas.
-- PIX dinâmico para cada pedido: R$ 2,50 por número.
-- Verificação pela API oficial do Mercado Pago, incluindo status aprovado, valor,
-  método PIX e referência do pedido antes de qualquer baixa.
-- Webhook com assinatura HMAC validada.
-- Números pagos ficam como 'sold' no banco; 'reserved' são temporariamente indisponíveis.
-- 010 e 024 começam bloqueados.
-- Clientes veem disponibilidade compartilhada; pagamentos não são aprovados pelo navegador.
+### 1. Configurar Supabase
+1. Crie um projeto em https://supabase.com.
+2. Execute `payment-backend/schema.sql` no SQL Editor do projeto.
+3. Conecte a Supabase CLI com `supabase login` e
+   `supabase link --project-ref SEU_PROJETO`.
+4. Defina os secrets da Edge Function no painel do Supabase, nunca no GitHub:
+   - `PAGBANK_ACCESS_TOKEN`: token emitido no painel PagBank
+   - `PAGBANK_ENV`: `sandbox` para testes, `production` após aprovação
+   - `ALLOWED_SITE_ORIGIN`: `https://flackoclf44.github.io`
+   - `PUBLIC_FUNCTION_URL`: `https://SEU_PROJETO.supabase.co/functions/v1/astros-checkout`
+   - `PAGBANK_WEBHOOK_PUBLIC_KEY`: chave pública X.509 base64 do PagBank para
+     validar webhooks `x-payload-signature` (se aplicável ao seu ambiente)
+   - `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` quando não forem
+     fornecidos automaticamente pelo Supabase.
+5. Implante com:
+   `supabase functions deploy astros-checkout --no-verify-jwt`
 
-## Etapas para ativação
+Observação: as rotas públicas exigem medidas adicionais de proteção contra
+abusos (rate limit/IP, CAPTCHA, logs e monitoramento) antes de produção.
 
-### 1. Conta recebedora
-É necessária conta Mercado Pago com credenciais de API, autorizada pelo
-provedor para esta modalidade. Confirme em qual conta o dinheiro cairá.
-A chave PIX CNPJ e QR Code fixo antigos NÃO permitem associar PIX a pedidos.
-Quando o modo automático estiver ativo, só usar o PIX exclusivo gerado para cada pedido.
+### 2. Token PagBank
+- Sandbox: Portal do Desenvolvedor > Tokens.
+- Produção: PagBank no computador > Vendas > Integrações > Gerar Token.
+- Tokens são privados. **Não os cole em chats, commits, páginas JS ou HTML.**
+- Utilize um token para o ambiente correto; produção não é sandbox.
+- Antes de ir ao ar confirme a habilitação real da API na sua conta.
 
-### 2. Configurar Supabase
-- Crie um projeto em https://supabase.com
-- Abra o SQL Editor e execute o arquivo payment-backend/schema.sql.
-- Instale e autentique a Supabase CLI.
-- Vincule ao projeto: supabase link --project-ref SEU_PROJECT_REF
-- Defina variáveis privadas pelo painel Secrets ou por supabase secrets set:
-  MERCADO_PAGO_ACCESS_TOKEN=SEU_TOKEN
-  MERCADO_PAGO_WEBHOOK_SECRET=SEGREDO_WEBHOOK
-  ALLOWED_SITE_ORIGIN=https://flackoclf44.github.io
-  PUBLIC_FUNCTION_URL=https://SEU_PROJECT_REF.supabase.co/functions/v1/astros-checkout
-- Faça deploy: supabase functions deploy astros-checkout --no-verify-jwt
-- SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY precisam existir nos secrets da função;
-  normalmente são fornecidas pelo ambiente. NUNCA coloque service_role na página web.
+### 3. Webhook PagBank
+A função inclui a URL da notificação em cada pedido:
+`https://SEU_PROJETO.supabase.co/functions/v1/astros-checkout/webhook`
 
-### 3. Configurar Mercado Pago
-- Cadastre como webhook HTTPS do evento 'payment':
-  https://SEU_PROJECT_REF.supabase.co/functions/v1/astros-checkout/webhook
-- Copie o segredo de assinatura webhook para os secrets do Supabase.
-- Verifique eventos no modo teste e depois no modo produção.
+Webhooks antigos podem enviar `x-authenticity-token`, validado por SHA-256
+do token + hífen + corpo original. Os novos podem enviar
+`x-payload-signature` com assinatura ECDSA; neste caso configure a chave
+pública específica do PagBank. Eventos não autenticados são recusados.
+Mesmo com webhook válido, a baixa ocorre somente depois da consulta
+autenticada diretamente na API Order do PagBank.
 
-Documentação:
-https://www.mercadopago.com.br/developers/pt/docs/checkout-api-payments/integration-configuration/integrate-pix
-https://www.mercadopago.com.br/developers/pt/docs/checkout-pro-preferences/payment-notifications
+Documentação oficial:
+- https://developer.pagbank.com.br/reference/criar-pedido-com-qr-code-pix-v2
+- https://developer.pagbank.com.br/reference/consultar-pedido
+- https://developer.pagbank.com.br/reference/webhooks
+- https://developer.pagbank.com.br/reference/validacao-de-autenticidade
+- https://developer.pagbank.com.br/docs/token-de-autenticacao
 
-### 4. Ativar no GitHub Pages APENAS após testar
-Edite checkout-config.js para:
-window.ASTROS_CHECKOUT_API = "https://SEU_PROJECT_REF.supabase.co/functions/v1/astros-checkout";
+### 4. Testar e ativar
+1. Realize testes sandbox de PIX pendente, pago, negado, expirado,
+   webhook repetido e competição simultânea pelo mesmo número.
+2. Verifique que 010 e 024 seguem indisponíveis e PIX pendente não baixa números.
+3. Confirme que cobranças PagBank são emitidas na conta correta.
+4. Verifique autorização, aprovação do provedor, antifraude, privacidade/LGPD.
+5. Depois de publicar a função e testar, edite somente `checkout-config.js`:
+   `window.ASTROS_CHECKOUT_API = "https://SEU_PROJETO.supabase.co/functions/v1/astros-checkout";`
 
-O arquivo começa vazio. Por isso o site atual NÃO passa a confirmar pagamentos
-sozinho. Nunca cole credenciais de API, token ou chaves privadas nesse arquivo.
+**Enquanto a URL estiver vazia, o site continua com o checkout anterior,
+sem confirmação ou baixa automática. Não ative antes de testar.**
 
-### 5. Testes necessários
-- Concorrência: abrir dois navegadores e disputar o mesmo número.
-- 010 e 024 devem permanecer bloqueados.
-- PIX pendente não pode aparecer como vendido.
-- PIX aprovado deve alterar os números reservados para vendidos.
-- Webhook repetido não pode causar baixa duplicada.
-- PIX encerrado sem pagar só libera os números quando o provedor confirmar.
-- Falhas de rede não devem liberar reservas antes de verificar com o provedor.
-- Os dados devem continuar consistentes após atualizar a página.
-
-## Cuidados na produção
-
-- Recomenda-se CAPTCHA, limite por IP e monitoramento de pedidos: limitar pelo e-mail
-  no SQL é somente uma proteção inicial contra abuso.
-- Pagamentos fora do prazo ou que não correspondem à reserva vão para 'review';
-  devem ser analisados manualmente, sem vender o mesmo número duas vezes.
-- CPF vai diretamente da página para a função e dela para o provedor, sem salvar no banco;
-  o e-mail fica em tabela com RLS. Siga as regras de proteção de dados aplicáveis.
-- A função verifica o pagamento consultando o Mercado Pago. Não aceite fotos,
-  mensagens WhatsApp nem textos do cliente como prova técnica de pagamento.
-- A página de sorteio ainda é uma demonstração; para sorteio oficial, use a
-  lista de pagamentos aprovados e um procedimento de apuração verificável.
-- Preços e tarifas dos serviços dependem do plano/volume.
+### Limitações / observações
+- O frontend de pagamento solicita nome completo, e-mail e CPF do pagador.
+  O CPF não deve ser armazenado em dados públicos do GitHub Pages.
+- A função não guarda o CPF no banco e só envia dados ao PagBank.
+- A interface pública não decide que o PIX foi pago.
+- Falhas ou pagamentos fora de prazo devem ser analisados antes de liberar
+  a reserva, para evitar números vendidos duas vezes.
+- A página `sorteio.html` ainda é demonstrativa e não apura pagamentos reais.
+- Verifique taxas/custos da API, do banco e da hospedagem.
