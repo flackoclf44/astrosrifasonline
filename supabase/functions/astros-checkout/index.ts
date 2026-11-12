@@ -335,6 +335,23 @@ async function runIsolatedSandboxPixTest(request:Request) {
     });
     const body=await response.json().catch(()=>({}));
     const charge=Array.isArray(body.charges)?body.charges[0]:null;
+    let confirmedChargeStatus:null|string=null;
+    let statusQueryHttpStatus:null|number=null;
+    if(response.ok && typeof body.id==="string" && pagOrder.test(body.id)){
+      await new Promise(resolve=>setTimeout(resolve,4500));
+      try{
+        const check=await fetch("https://sandbox.api.pagseguro.com/orders/"+encodeURIComponent(body.id),{
+          headers:{"Authorization":"Bearer "+PAGBANK_TOKEN,"Accept":"application/json"},
+          signal:AbortSignal.timeout(8000)
+        });
+        statusQueryHttpStatus=check.status;
+        if(check.ok){
+          const checked=await check.json();
+          confirmedChargeStatus=Array.isArray(checked.charges)?
+            String(checked.charges[0]?.status||""):null;
+        }
+      }catch(_error){console.warn("Consulta do status Sandbox indisponível");}
+    }
     const problems=Array.isArray(body.error_messages)?body.error_messages.slice(0,5)
       .map((x:any)=>({
         code:String(x.code||"").slice(0,32),
@@ -345,6 +362,8 @@ async function runIsolatedSandboxPixTest(request:Request) {
       sandbox:true,created:response.ok&&Boolean(body.id),
       providerHttpStatus:response.status,
       chargeStatus:charge?.status||null,
+      statusAfter4Seconds:confirmedChargeStatus,
+      statusQueryHttpStatus,
       qrCodeCreated:Boolean(charge?.qr_code?.text),
       orderIdFormatValid:typeof body.id==="string"&&pagOrder.test(body.id),
       problemCodes:problems,
