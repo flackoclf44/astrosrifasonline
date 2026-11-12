@@ -7,7 +7,15 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL=Deno.env.get("SUPABASE_URL")||"";
-const SERVICE_KEY=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")||"";
+// Supabase supports the 2026 secret-key format and legacy service_role keys.
+const SUPABASE_NEW_KEYS=Deno.env.get("SUPABASE_SECRET_KEYS")||"";
+let primarySecret="";
+try {
+  if (SUPABASE_NEW_KEYS) primarySecret=String(JSON.parse(SUPABASE_NEW_KEYS)?.default||"");
+} catch {
+  console.error("ASTROS: SUPABASE_SECRET_KEYS is not valid JSON.");
+}
+const SERVICE_KEY=primarySecret||Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")||"";
 const PAGBANK_TOKEN=Deno.env.get("PAGBANK_ACCESS_TOKEN")||"";
 const PAGBANK_ENV=Deno.env.get("PAGBANK_ENV")||"sandbox";
 const PAYMENTS_ENABLED=Deno.env.get("ASTROS_PAYMENTS_ENABLED")==="true";
