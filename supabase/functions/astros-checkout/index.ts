@@ -187,12 +187,12 @@ function derToRaw(input:Uint8Array){
 }
 let autoWebhookKey:{value:string;expiresAt:number}|null=null;
 async function webhookPublicKey(){
-  if(WEBHOOK_PUBLIC_KEY)return WEBHOOK_PUBLIC_KEY.trim().replace(/\\s+/g,"");
+  if(WEBHOOK_PUBLIC_KEY)return WEBHOOK_PUBLIC_KEY.trim().replace(/\s+/g,"");
   if(autoWebhookKey&&autoWebhookKey.expiresAt>Date.now())return autoWebhookKey.value;
   // A chave pública ECDSA não é um segredo: recuperamos via API autenticada,
   // sem exigir que o responsável cole a chave no GitHub ou neste chat.
   const response=await pagbank("/public-keys?type=webhook");
-  const value=String(response.public_key||"").trim().replace(/\\s+/g,"");
+  const value=String(response.public_key||"").trim().replace(/\s+/g,"");
   if(!value||value.length>2048||!/^[A-Za-z0-9+/=]+$/.test(value))
     throw Error("PagBank não retornou chave de webhook válida.");
   autoWebhookKey={value,expiresAt:Date.now()+30*60_000};
