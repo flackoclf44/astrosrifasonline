@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#09090b" />
+  <meta name="description" content="ASTROS — Página de sorteio da campanha. Ferramenta demonstrativa de sorteio aleatório." />
+  <title>ASTROS | Sorteio — Em Breve</title>
+  <link rel="icon" href="images/logo.png" type="image/png" />
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    .draw-hero { background:radial-gradient(ellipse at 80% 18%,#27272e 0,#121216 45%,#09090b 82%); padding:95px 0 62px; overflow:hidden; }
+    .draw-overline { font-size:11px; font-weight:900; letter-spacing:.18em; color:#b8b8c3; text-transform:uppercase; }
+    .draw-headline { margin:22px 0 24px; max-width:1000px; font:900 clamp(48px,8vw,108px)/.97 Impact,"Arial Narrow",sans-serif; letter-spacing:-.018em; }
+    .draw-headline span { display:block; color:#92929d; }
+    .draw-lead { max-width:650px; color:#c4c4cd; font-size:16px; line-height:1.8; }
+    .draw-hero-meta { margin-top:38px; padding-top:22px; border-top:1px solid #3b3b44; display:flex; flex-wrap:wrap; gap:16px 45px; font-size:11px; font-weight:900; letter-spacing:.11em; color:#b7b7bf; }
+    .draw-section { padding:70px 0 100px; background:#eeeeef; color:#121218; }
+    .draw-panel { background:white; border:1px solid #d2d2d7; display:grid; grid-template-columns:minmax(0,1.1fr) minmax(280px,.9fr); overflow:hidden; box-shadow:0 20px 40px #00000012; }
+    .draw-form-area { padding:clamp(25px,5vw,55px); }
+    .draw-label { display:block; margin:0 0 15px; font-size:12px; font-weight:900; letter-spacing:.13em; }
+    .draw-form-area h2 { font:900 clamp(35px,4.2vw,57px)/1 Impact,"Arial Narrow",sans-serif; margin:0 0 16px; }
+    .draw-description { color:#63636d; font-size:14px; line-height:1.75; margin:0 0 25px; }
+    .draw-form-area textarea { display:block; width:100%; min-height:125px; padding:15px; background:#f5f5f6; color:#111116; border:1px solid #ceced3; font:600 14px/1.6 Arial,sans-serif; resize:vertical; }
+    .draw-form-area textarea:focus-visible { outline:2px solid #101014; outline-offset:3px; }
+    .draw-help { margin:10px 0 22px; color:#656570; font-size:12px; line-height:1.7; }
+    .draw-button { border:0; background:#141419; color:white; width:100%; padding:18px 19px; font-size:12px; font-weight:900; letter-spacing:.09em; cursor:pointer; }
+    .draw-button:hover { background:#2e2e38; }
+    .draw-button:focus-visible { outline:2px solid #101014; outline-offset:3px; }
+    .draw-error { min-height:24px; margin:12px 0 0; color:#9e1726; font-size:12px; font-weight:700; }
+    .draw-result { background:#15151b; color:white; padding:clamp(25px,5vw,55px); display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; }
+    .draw-result .draw-label { color:#b5b5bf; }
+    .draw-result-number { margin:18px 0; font:900 clamp(90px,13vw,165px)/1 Impact,"Arial Narrow",sans-serif; letter-spacing:.02em; font-variant-numeric:tabular-nums; }
+    .draw-result-number.is-revealed { color:#f1f1f3; }
+    .draw-result-note { min-height:42px; max-width:300px; color:#c1c1cb; font-size:13px; line-height:1.65; }
+    .draw-disclaimer { max-width:960px; margin:24px 0 0; color:#595962; font-size:12px; line-height:1.8; }
+    .draw-back { display:inline-block; margin-top:28px; font-size:12px; font-weight:900; letter-spacing:.08em; text-decoration:underline; text-underline-offset:5px; }
+    @media(max-width:850px) { .draw-panel {grid-template-columns:1fr;} .draw-result {min-height:280px;} .draw-hero{padding:65px 0 50px;} .draw-section{padding:40px 0 70px;} }
+    @media(max-width:540px) { .draw-headline{font-size:clamp(44px,12vw,70px);overflow-wrap:break-word;} .draw-result-number{font-size:105px;} .draw-hero-meta{gap:12px 22px;} }
+  </style>
+</head>
+<body>
+  <div class="announcement"><span class="announcement-dot"></span> ASTROS SPORTING <span class="announcement-rule"></span> EDIÇÃO LIMITADA <span class="announcement-rule"></span> SORTEIO / EM BREVE</div>
+  <header class="header">
+    <div class="shell header-inner">
+      <a class="brand" href="index.html#inicio" aria-label="ASTROS — voltar ao início"><img src="images/astros-logo.png" alt="ASTROS" /></a>
+      <nav class="nav" aria-label="Menu principal">
+        <a href="index.html#colecao">A peça</a>
+        <a href="index.html#participar">Campanha</a>
+        <a href="sorteio.html" aria-current="page">Sorteio</a>
+        <a href="index.html#perguntas">Dúvidas</a>
+      </nav>
+      <a class="nav-action" href="index.html#participar">VER CAMPANHA <span aria-hidden="true">↗</span></a>
+    </div>
+  </header>
+  <main>
+    <section class="draw-hero">
+      <div class="shell">
+        <span class="draw-overline">ASTROS / EDIÇÃO 00 / SORTEIO</span>
+        <h1 class="draw-headline">SORTEIO DO NUMERO AQUI <span>- EM BREVE</span></h1>
+        <p class="draw-lead">O sorteio da campanha será anunciado aqui. Enquanto isso, esta página conta com uma ferramenta de <strong>simulação de sorteio aleatório</strong> para testar a seleção de números.</p>
+        <div class="draw-hero-meta"><span>001 — 150 / NUMERAÇÃO</span><span>01 CAMISA ASTROS / PRÊMIO</span><span>RESULTADO OFICIAL / A DEFINIR</span></div>
+      </div>
+    </section>
+    <section class="draw-section">
+      <div class="shell">
+        <div class="draw-panel">
+          <div class="draw-form-area">
+            <span class="draw-label">[ 01 ] FERRAMENTA DE TESTE</span>
+            <h2>SIMULAR SORTEIO</h2>
+            <p class="draw-description">Digite abaixo os números que deseja incluir na simulação, separados por vírgula, espaço ou linha. O sorteio escolherá um deles de forma aleatória.</p>
+            <form id="drawForm" novalidate>
+              <label class="draw-label" for="eligibleNumbers">NÚMEROS PARTICIPANTES (OPCIONAL)</label>
+              <textarea id="eligibleNumbers" placeholder="Ex.: 001, 015, 048, 102, 150" spellcheck="false" aria-describedby="drawHelp"></textarea>
+              <p class="draw-help" id="drawHelp">Se deixar o campo vazio, o teste usará todos os números de <strong>001 a 150</strong>. Para testar apenas números pagos, informe a lista confirmada manualmente.</p>
+              <button class="draw-button" type="submit">SORTEAR NÚMERO (SIMULAÇÃO) ↗</button>
+              <p class="draw-error" id="drawError" role="alert"></p>
+            </form>
+          </div>
+          <div class="draw-result" aria-live="polite" aria-atomic="true">
+            <span class="draw-label">RESULTADO DA SIMULAÇÃO</span>
+            <div class="draw-result-number" id="drawNumber">---</div>
+            <p class="draw-result-note" id="drawStatus">Nenhum sorteio de teste realizado até agora.</p>
+          </div>
+        </div>
+        <p class="draw-disclaimer"><strong>Importante:</strong> esta ferramenta é apenas demonstrativa. Não consulta pagamentos, não distingue números vendidos dos disponíveis, não registra nem publica resultados oficiais. Para um sorteio real, utilize somente os participantes elegíveis e um procedimento de apuração verificável conforme o regulamento da campanha.</p>
+        <a href="index.html#participar" class="draw-back">← VOLTAR PARA A CAMPANHA</a>
+      </div>
+    </section>
+  </main>
+  <footer class="footer">
+    <div class="shell">
+      <div class="footer-top">
+        <a class="footer-logo" href="index.html#inicio"><img src="images/astros-logo.png" alt="ASTROS" /></a>
+        <div class="footer-nav">
+          <a href="index.html#colecao">A CAMISA</a>
+          <a href="index.html#participar">CAMPANHA</a>
+          <a href="sorteio.html">SORTEIO</a>
+          <a href="regulamento.html">REGULAMENTO</a>
+          <a href="privacidade.html">PRIVACIDADE</a>
+        </div>
+      </div>
+      <div class="footer-bottom"><span>© 2026 ASTROS. TODOS OS DIREITOS RESERVADOS.</span><span>SORTEIO DEMONSTRATIVO • RESULTADO NÃO OFICIAL.</span></div>
+    </div>
+  </footer>
+  <script>
+    "use strict";
+    const drawForm = document.getElementById("drawForm");
+    const eligibleField = document.getElementById("eligibleNumbers");
+    const drawNumber = document.getElementById("drawNumber");
+    const drawStatus = document.getElementById("drawStatus");
+    const drawError = document.getElementById("drawError");
+    const formatNumber = n => String(n).padStart(3, "0");
+    function getEligibleNumbers() {
+      const raw = eligibleField.value.trim();
+      if (!raw) return Array.from({length: 150}, (_, i) => i + 1);
+      const entries = raw.split(/[\s,;]+/).filter(Boolean);
+      if (entries.length > 150) throw new Error("Informe no máximo 150 números.");
+      const invalid = entries.find(t => !/^\d{1,3}$/.test(t) || Number(t) < 1 || Number(t) > 150);
+      if (invalid) throw new Error("Número inválido: " + invalid + ". Utilize somente números de 001 a 150.");
+      return [...new Set(entries.map(Number))].sort((a, b) => a - b);
+    }
+    function secureIndex(length) {
+      if (!window.crypto || !window.crypto.getRandomValues) {
+        throw new Error("O navegador não permite sorteio aleatório seguro. Atualize o navegador e tente novamente.");
+      }
+      const limit = Math.floor(4294967296 / length) * length;
+      const buffer = new Uint32Array(1);
+      do { window.crypto.getRandomValues(buffer); } while (buffer[0] >= limit);
+      return buffer[0] % length;
+    }
+    drawForm.addEventListener("submit", event => {
+      event.preventDefault();
+      drawError.textContent = "";
+      try {
+        const numbers = getEligibleNumbers();
+        const winner = numbers[secureIndex(numbers.length)];
+        drawNumber.textContent = formatNumber(winner);
+        drawNumber.classList.add("is-revealed");
+        drawStatus.textContent = "Número selecionado entre " + numbers.length + " participante" + (numbers.length === 1 ? "" : "s") + " da simulação. Resultado não oficial.";
+      } catch (err) {
+        drawError.textContent = err.message;
+      }
+    });
+    eligibleField.addEventListener("input", () => { drawError.textContent = ""; });
+  </script>
+</body>
+</html>
