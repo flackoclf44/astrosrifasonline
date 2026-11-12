@@ -23,7 +23,6 @@ const db=createClient(SUPABASE_URL || "https://invalid.supabase.co",SERVICE_KEY|
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const pagOrder=/^ORDE_[A-Z0-9-]{24,40}$/i;
 const toDigits=(v:unknown)=>String(v??"").replace(/\D/g,"");
-const currency=(centavos:number)=>centavos/100;
 const originHeaders=(origin="")=>({
   "content-type":"application/json; charset=utf-8",
   "cache-control":"no-store","access-control-allow-origin":origin||"null",
@@ -133,8 +132,8 @@ async function getQrPng(links:unknown){
   for(let n=0;n<bytes.length;n+=4096)binary+=String.fromCharCode(...bytes.slice(n,n+4096));
   return btoa(binary);
 }
-const hex=bytes=>Array.from(bytes).map(x=>x.toString(16).padStart(2,"0")).join("");
-const decodeBase64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+const hex=(bytes:Uint8Array)=>Array.from(bytes).map(x=>x.toString(16).padStart(2,"0")).join("");
+const decodeBase64=(s:string)=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
 function derToRaw(input:Uint8Array){
   // X.509 ECDSA DER sequence [INTEGER r, INTEGER s] -> WebCrypto P1363 64 bytes.
   if(input.length===64)return input;
@@ -269,7 +268,7 @@ Deno.serve(async(request)=>{
         }],
         notification_urls:[FUNCTION_URL+"/webhook"]
       };
-      let remote;
+      let remote:any;
       try{
         remote=await pagbank("/orders",{
           method:"POST",headers:{"content-type":"application/json",
