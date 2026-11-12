@@ -20,6 +20,25 @@
   let currentOrder=null;
   let checking=null;
   let loading=false;
+  let captchaScriptPromise=null;
+  function loadGoogleRecaptcha(){
+    if(window.grecaptcha && typeof window.grecaptcha.render==="function")
+      return Promise.resolve(window.grecaptcha);
+    if(captchaScriptPromise)return captchaScriptPromise;
+    captchaScriptPromise=new Promise((resolve,reject)=>{
+      const script=document.createElement("script");
+      script.src="https://www.google.com/recaptcha/api.js?render=explicit&hl=pt-BR";
+      script.async=true;script.defer=true;
+      script.onload=()=>{
+        if(window.grecaptcha && typeof window.grecaptcha.ready==="function")
+          window.grecaptcha.ready(()=>resolve(window.grecaptcha));
+        else reject(Error("O serviço reCAPTCHA não ficou disponível."));
+      };
+      script.onerror=()=>reject(Error("Não foi possível carregar o reCAPTCHA. Verifique a conexão."));
+      document.head.appendChild(script);
+    }).catch(error=>{captchaScriptPromise=null;throw error;});
+    return captchaScriptPromise;
+  }
   const p=(text,cls)=>{
     const e=document.createElement("p");
     e.textContent=text;if(cls)e.className=cls;return e;
@@ -76,7 +95,17 @@
     const cpf=document.createElement("input");
     cpf.id="autoPayerCpf";cpf.inputMode="numeric";cpf.placeholder="Somente números";cpf.maxLength=14;
     const error=p("","form-error");
+    const captchaMessage=p("Carregando proteção reCAPTCHA...","autoPixHint");
+    const captchaHost=document.createElement("div");
+    captchaHost.className="autoCaptchaWidget";
+    const siteKey=String(window.ASTROS_RECAPTCHA_SITE_KEY||"").trim();
+    let captchaWidget=null;
     const pay=btn("GERAR PIX",async()=>{
+      const captchaToken=captchaWidget!==null && window.grecaptcha?.getResponse(captchaWidget);
+      if(!captchaToken){
+        error.textContent="Marque a opção Não sou um robô para continuar.";
+        return;
+      }
       const fullname=name.value.trim().replace(/\s+/g," ");
       const entered=email.value.trim();
       const doc=cpf.value.replace(/\D/g,"");
@@ -86,18 +115,51 @@
       }
       pay.disabled=true;pay.textContent="GERANDO PIX...";
       try{
-        const order=await req("/checkout",{method:"POST",body:JSON.stringify({numbers,name:fullname,email:entered,cpf:doc})});
+        const order=await req("/checkout",{method:"POST",body:JSON.stringify({numbers,name:fullname,email:entered,cpf:doc,recaptchaToken:captchaToken})});
         currentOrder=order.orderId;
         showPix(order);
         startPolling();
         await updateAvailability();
       }catch(e){
         error.textContent=e.message||"Erro ao gerar o PIX.";
-        pay.disabled=false;pay.textContent="GERAR PIX";
+        pay.disabled=true;pay.textContent="GERAR PIX";
+        if(captchaWidget!==null && window.grecaptcha)window.grecaptcha.reset(captchaWidget);
+        captchaMessage.textContent="Resolva novamente o reCAPTCHA para uma nova tentativa.";
         await updateAvailability();
       }
     });
-    area.append(nameLabel,name,emailLabel,email,cpfLabel,cpf,error,pay);
+    // Falha fechada: sem chave pública ou sem widget do Google não há envio.
+    pay.disabled=true;
+    area.append(nameLabel,name,emailLabel,email,cpfLabel,cpf,
+      captchaMessage,captchaHost,error,pay);
+    if(!siteKey){
+      captchaMessage.textContent="O reCAPTCHA está sendo configurado. O checkout automático ainda não está disponível.";
+      return;
+    }
+    loadGoogleRecaptcha().then(api=>{
+      if(!document.body.contains(captchaHost))return;
+      captchaWidget=api.render(captchaHost,{
+        sitekey:siteKey,
+        theme:"dark",
+        size:window.innerWidth<370?"compact":"normal",
+        callback:()=>{
+          if(document.body.contains(captchaHost)){
+            captchaMessage.textContent="Proteção concluída. Você pode gerar seu PIX.";
+            error.textContent="";
+            pay.disabled=false;
+          }
+        },
+        "expired-callback":()=>{
+          pay.disabled=true;captchaMessage.textContent="O reCAPTCHA expirou. Marque novamente.";
+        },
+        "error-callback":()=>{
+          pay.disabled=true;captchaMessage.textContent="Falha na verificação. Recarregue a página para tentar novamente.";
+        }
+      });
+      captchaMessage.textContent="Confirme que você não é um robô antes de gerar o PIX.";
+    }).catch(e=>{
+      pay.disabled=true;captchaMessage.textContent=String(e.message||"reCAPTCHA indisponível.");
+    });
   }
   function showPix(order){
     const area=createModal("PAGUE COM O PIX");
@@ -157,7 +219,8 @@
     ".modal .autoPixStatus{font-size:13px;font-weight:900;color:#d7d7dd;margin-top:18px}",
     ".modal #autoPixCode{display:block;width:100%;margin:8px 0 12px;font:12px/1.5 monospace}",
     ".modal #astrosPaymentBody label{display:block;font-size:12px;font-weight:900;margin:15px 0 5px}",
-    ".modal #astrosPaymentBody input{width:100%;margin:0 0 8px}"
+    ".modal #astrosPaymentBody input{width:100%;margin:0 0 8px}",
+    ".modal .autoCaptchaWidget{margin:10px 0 12px;min-height:75px;max-width:100%;overflow:hidden}"
   ].join("\n");
   document.head.appendChild(style);
   $("checkoutBtn").disabled=true;
