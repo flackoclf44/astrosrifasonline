@@ -3,7 +3,7 @@ const $ = (id) => document.getElementById(id);
 const PRICE_CENTS = 250;
 const MAX_TICKETS = 150;
 const SELECT_LIMIT = 20;
-const BLOCKED_NUMBERS = new Set([24]);
+const BLOCKED_NUMBERS = new Set([10, 24]);
 const WHATSAPP_NUMBER = '5514991911888';
 const selected = new Set();
 const pad = n => String(n).padStart(3, '0');
