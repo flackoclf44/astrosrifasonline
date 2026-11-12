@@ -58,8 +58,8 @@ declare
 begin
   v_count := cardinality(p_numbers);
   if p_numbers is null or v_count not between 1 and 20 or
-     exists (select 1 from unnest(p_numbers) n where n is null or n < 1 or n > 150) or
-     (select count(distinct n) from unnest(p_numbers) n) <> v_count then
+     exists (select 1 from unnest(p_numbers) as u(n) where u.n is null or u.n < 1 or u.n > 150) or
+     (select count(distinct u.n) from unnest(p_numbers) as u(n)) <> v_count then
     raise exception 'Seleção de números inválida';
   end if;
   if p_email is null or length(p_email)>254 or p_email !~* '^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$' then
