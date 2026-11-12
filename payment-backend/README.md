@@ -113,3 +113,23 @@ A rota informa `ready:false` enquanto o token ou a ativação estiver ausente. A
   uma compra pelo checkout, homologação e autorização comercial PagBank.
 
 Até esses passos passarem, mantenha ASTROS_PAYMENTS_ENABLED=false.
+
+## Verificações adicionais do fluxo de baixa (12/11/2026)
+
+- Teste transacional de duas reservas simultâneas / número já vendido: segunda reserva rejeitada.
+- Aprovação idempotente: receber aprovação repetida não vende duas vezes.
+- Aprovação tardia após a liberação de reserva: resultado review, sem marcar número vendido.
+- ROLLBACK aplicado em todos os testes; 148 disponíveis, 2 bloqueados, zero vendidos.
+- A documentação PagBank do simulador distingue API PIX de APIs de pedidos;
+  a regra de pagamento automático do simulador não comprova o evento PAID
+  para o QR gerado. A cobrança PIX criada no Sandbox continuou WAITING
+  após consulta; a etapa real de webhook assinado/PAID ainda está pendente.
+- Novo webhook ECDSA demanda consultar chave pública do PagBank; essa rota
+  retornou 403 no Sandbox, embora a API Orders tenha aceitado criar cobranças.
+  O código inclui suporte ao formato antigo de assinatura x-authenticity-token.
+- Antes de entrar em produção: homologar/autorizar o uso dessa modalidade de
+  campanha junto ao PagBank, configurar token de produção em ambiente seguro,
+  verificar notificações PAID e conexão completa do checkout.
+
+**Não habilitar ASTROS_PAYMENTS_ENABLED nem configurar checkout-config.js para
+transações reais sem passar pela homologação e pelos testes completos.**
