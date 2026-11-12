@@ -119,18 +119,21 @@ a:hover {
 .brand {
     display: flex;
     align-items: center;
-    justify-content: center;
-    flex: 0 0 195px;
-    width: 195px;
-    height: 80px;
+    justify-content: flex-start;
+    flex: 0 0 154px;
+    width: 154px;
+    height: 60px;
+    overflow: hidden;
 }
 .brand img {
     display: block;
-    width: 100%;
+    flex: none;
+    width: 140px;
+    height: 54px;
     max-width: 100%;
-    height: auto;
-    max-height: 78px;
+    max-height: 100%;
     object-fit: contain;
+    object-position: center;
     transform: none;
 }
 .nav { order: 1; }
@@ -1358,8 +1361,8 @@ a:hover {
         height: 63px
     }
 
-    .brand { flex-basis: 142px; width: 142px; height: 61px; }
-    .brand img { width: 100%; height: auto; max-height: 61px; transform: none; }
+    .brand { flex-basis: 116px; width: 116px; height: 46px; }
+    .brand img { width: 108px; height: 42px; max-height: 100%; transform: none; }
 
     .nav-action {
         padding: 11px;
