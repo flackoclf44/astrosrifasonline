@@ -117,22 +117,21 @@ a:hover {
 
 /* O logo original tem margens transparentes; esta janela enquadra apenas a marca. */
 .brand {
-    display: block;
-    position: relative;
-    flex: 0 0 180px;
-    width: 180px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 195px;
+    width: 195px;
     height: 80px;
-    overflow: hidden;
 }
 .brand img {
-    position: absolute;
-    max-width: none;
-    width: 285px;
-    height: 285px;
-    left: 50%;
-    top: 50%;
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    max-height: 78px;
     object-fit: contain;
-    transform: translate(-50%, calc(-50% + 15px));
+    transform: none;
 }
 .nav { order: 1; }
 .nav-action { order: 3; justify-self: end; } */
@@ -1359,8 +1358,8 @@ a:hover {
         height: 63px
     }
 
-    .brand { flex-basis: 140px; width: 140px; height: 61px; }
-    .brand img { width: 225px; height: 225px; transform: translate(-50%, calc(-50% + 11px)); }
+    .brand { flex-basis: 142px; width: 142px; height: 61px; }
+    .brand img { width: 100%; height: auto; max-height: 61px; transform: none; }
 
     .nav-action {
         padding: 11px;
