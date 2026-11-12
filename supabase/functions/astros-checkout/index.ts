@@ -127,12 +127,11 @@ async function validWebhook(request: Request, dataId: string) {
   for(let i=0;i<actual.length;i++)diff|=actual[i]^expected[i];
   return diff===0;
 }
-function safeOrder(order: any) {
+function safeOrder(order: any, includePix=false) {
   return {
     orderId:order.id, numbers:order.numbers, totalCents:order.amount_cents,
     status:order.status, expiresAt:order.reservation_expires_at,
-    // Pix apenas para o comprador com ID aleatório do pedido.
-    pixCode:order.pix_payload, qrBase64:order.pix_image_base64
+    ...(includePix?{pixCode:order.pix_payload,qrBase64:order.pix_image_base64}:{})
   };
 }
 Deno.serve(async (request) => {
@@ -202,7 +201,7 @@ Deno.serve(async (request) => {
         payment_method_id:"pix",
         description:"ASTROS - numeros "+numbers.map(n=>String(n).padStart(3,"0")).join(", "),
         external_reference:orderId,
-        date_of_expiration:new Date(Date.now()+30*60*1000).toISOString(),
+        date_of_expiration:new Date(Date.now()+31*60*1000).toISOString(),
         notification_url:FUNCTION_URL.replace(/\/$/,"")+"/webhook",
         payer:{email,identification:{type:"CPF",number:cpf}}
       };
@@ -218,7 +217,14 @@ Deno.serve(async (request) => {
         // Se a requisição chegou ao provedor mas a resposta falhou, liberar
         // a reserva imediatamente pode causar venda duplicada.
         console.error("Falha na criação Pix do pedido",orderId,String(error));
-        return fail("Não foi possível gerar o Pix. A reserva será conciliada; contate o suporte.",502,acceptedOrigin);
+        if (/MERCADO_PAGO_HTTP_4dd/.test(String(error))) {
+          // Uma falha definitiva de validação não emitiu uma cobrança.
+          await db.rpc("astros_release",{p_id:orderId});
+          return fail("O provedor não aceitou a cobrança. Revise os dados e tente novamente.",422,acceptedOrigin);
+        }
+        // 5xx/timeout pode significar resposta perdida após a cobrança nascer:
+        // a reserva permanece até conciliação segura no provedor.
+        return fail("Não foi possível confirmar a criação do Pix. Contate o suporte antes de tentar novamente.",502,acceptedOrigin);
       }
       const txn=payment.point_of_interaction?.transaction_data ?? {};
       const paymentId=getPaymentId(payment.id);
@@ -230,7 +236,7 @@ Deno.serve(async (request) => {
       });
       if(saveError)throw saveError;
       const order=await getOrder(String(orderId));
-      return json(safeOrder(order),201,acceptedOrigin);
+      return json(safeOrder(order,true),201,acceptedOrigin);
     }
     return fail("Rota não encontrada.",404,acceptedOrigin);
   } catch(error) {
