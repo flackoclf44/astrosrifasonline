@@ -223,7 +223,7 @@ Deno.serve(async(request)=>{
     "access-control-allow-methods":"GET,POST,OPTIONS",
     "access-control-allow-headers":"content-type",
     "access-control-max-age":"600","vary":"Origin"}});
-  if(route==="/health"&&request.method==="GET") return json({service:"ASTROS PagBank Pix",deployed:true,ready:IS_CONFIGURED,environment:PAGBANK_ENV},200,accepted);
+  if(route==="/health"&&request.method==="GET") return json({service:"ASTROS PagBank Pix",deployed:true,ready:IS_CONFIGURED,environment:PAGBANK_ENV,tokenConfigured:Boolean(PAGBANK_TOKEN),databaseConfigured:Boolean(SUPABASE_URL&&SERVICE_KEY),paymentsEnabled:PAYMENTS_ENABLED},200,accepted);
   if(!IS_CONFIGURED)return fail("PIX automático ainda não ativado.",503,accepted);
   if(!webhook&&origin!==SITE_ORIGIN)return fail("Origem não autorizada.",403,accepted);
   try{
