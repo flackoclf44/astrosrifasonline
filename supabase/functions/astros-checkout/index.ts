@@ -389,7 +389,8 @@ async function runIsolatedSandboxPixTest(request:Request) {
       payment_method:{type:"PIX",pix:{
         expiration_date:new Date(Date.now()+30*60_000).toISOString()
       }}
-    }]
+    }],
+    notification_urls:[FUNCTION_URL+"/sandbox-webhook"]
   };
   try{
     const response=await fetch("https://sandbox.api.pagseguro.com/orders",{
@@ -405,6 +406,15 @@ async function runIsolatedSandboxPixTest(request:Request) {
     });
     const body=await response.json().catch(()=>({}));
     const charge=Array.isArray(body.charges)?body.charges[0]:null;
+    if(response.ok && typeof body.id==="string" && pagOrder.test(body.id)){
+      const {error:storeError}=await db.from("astros_sandbox_runs").insert({
+        reference,provider_order_id:body.id,amount_cents:250,
+        initial_status:String(charge?.status||"UNKNOWN"),
+        latest_status:String(charge?.status||"UNKNOWN")
+      });
+      if(storeError){console.error("Erro ao registrar Sandbox",storeError.code);
+        return fail("O Pix teste foi emitido, mas nao foi possivel registrar seu ID.",500);}
+    }
     let confirmedChargeStatus:null|string=null;
     let statusQueryHttpStatus:null|number=null;
     if(response.ok && typeof body.id==="string" && pagOrder.test(body.id)){
@@ -419,6 +429,13 @@ async function runIsolatedSandboxPixTest(request:Request) {
           const checked=await check.json();
           confirmedChargeStatus=Array.isArray(checked.charges)?
             String(checked.charges[0]?.status||""):null;
+          if(confirmedChargeStatus){
+            const {error:stateError}=await db.from("astros_sandbox_runs")
+              .update({latest_status:confirmedChargeStatus,last_checked_at:new Date().toISOString(),
+                provider_http_status:check.status})
+              .eq("provider_order_id",body.id);
+            if(stateError)console.error("Status Sandbox nao armazenado",stateError.code);
+          }
         }
       }catch(_error){console.warn("Consulta do status Sandbox indisponível");}
     }
@@ -431,6 +448,7 @@ async function runIsolatedSandboxPixTest(request:Request) {
     return json({
       sandbox:true,created:response.ok&&Boolean(body.id),
       providerHttpStatus:response.status,
+      orderId:response.ok&&pagOrder.test(body.id||"")?body.id:null,
       chargeStatus:charge?.status||null,
       statusAfter4Seconds:confirmedChargeStatus,
       statusQueryHttpStatus,
@@ -463,6 +481,10 @@ Deno.serve(async(request)=>{
   }
   if(route==="/sandbox-pix-probe"&&request.method==="POST")
     return await runIsolatedSandboxPixTest(request);
+  if(route==="/sandbox-order-status"&&request.method==="POST")
+    return await sandboxCheckStatus(request);
+  if(route==="/sandbox-webhook"&&request.method==="POST")
+    return await sandboxWebhook(request);
   if(!IS_CONFIGURED)return fail("PIX automático ainda não ativado.",503,accepted);
   if(!webhook&&origin!==SITE_ORIGIN)return fail("Origem não autorizada.",403,accepted);
   try{
