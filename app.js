@@ -172,13 +172,6 @@ window.ASTROS_RAFFLE_UI = {
     }
     remoteReady=true;
     for(const n of selected)if(isUnavailable(n))selected.delete(n);
-    $('statAvailable').textContent=available;
-    $('statSold').textContent=REMOTE_SOLD.size;
-    $('statReserved').textContent=REMOTE_RESERVED.size;
-    $('statAvailable').nextElementSibling.textContent='NÚMEROS DISPONÍVEIS';
-    $('statSold').nextElementSibling.textContent='VENDIDOS COM PAGAMENTO CONFIRMADO';
-    $('statReserved').nextElementSibling.textContent='RESERVADOS TEMPORARIAMENTE';
-    $('checkoutNote').textContent='Os números são baixados somente após confirmação do PIX pelo provedor.';
     $('numbersHelp').textContent='';
     renderGrid(); renderSummary();
     return true;
@@ -191,8 +184,6 @@ window.ASTROS_RAFFLE_UI = {
   clearSelection() {selected.clear();renderGrid();renderSummary();}
 };
 configurePixPopup();
-$('statAvailable').textContent = MAX_TICKETS - BLOCKED_NUMBERS.size;
-$('statAvailable').nextElementSibling.textContent = 'NÚMEROS NÃO BLOQUEADOS';
 const unavailableLegend = document.querySelector('.number-key .key-selected')?.parentElement;
 if (unavailableLegend) unavailableLegend.lastChild.textContent = ' Indisponível';
 renderGrid(); renderSummary();
