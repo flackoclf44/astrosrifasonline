@@ -524,6 +524,28 @@ Deno.serve(async(request)=>{
     return await sandboxCheckStatus(request);
   if(route==="/sandbox-webhook"&&request.method==="POST")
     return await sandboxWebhook(request);
+  // Teste isolado da proteção: NÃO cria pedidos, não mexe em números.
+  // Só habilitado para a origem oficial do GitHub Pages enquanto em Sandbox.
+  if(route==="/recaptcha-test"&&request.method==="POST") {
+    if(PAGBANK_ENV!=="sandbox"||PAYMENTS_ENABLED)
+      return fail("Teste disponível somente no ambiente de demonstração.",403,accepted);
+    if(origin!==SITE_ORIGIN||!GOOGLE_RECAPTCHA_SECRET_KEY)
+      return fail("Origem não autorizada ou reCAPTCHA não configurado.",403,accepted);
+    if(!/^application\/json(?:;|$)/i.test(request.headers.get("content-type")||""))
+      return fail("Tipo de requisição inválido.",415,accepted);
+    if(Number(request.headers.get("content-length")||"0")>10000)
+      return fail("Requisição grande demais.",413,accepted);
+    let payload:unknown;
+    try {payload=await request.json();} catch {
+      return fail("Dados inválidos.",400,accepted);
+    }
+    if(!payload||typeof payload!=="object"||!verifyGoogleRecaptcha)
+      return fail("Dados inválidos.",400,accepted);
+    const token=(payload as Record<string,unknown>).recaptchaToken;
+    if(!await verifyGoogleRecaptcha(token))
+      return json({valid:false,message:"O Google não confirmou este reCAPTCHA. Verifique as chaves e o domínio configurado."},200,accepted);
+    return json({valid:true,message:"Google reCAPTCHA validado no servidor, sem gerar PIX."},200,accepted);
+  }
   if(!IS_CONFIGURED)return fail("PIX automático ainda não ativado.",503,accepted);
   if(!webhook&&origin!==SITE_ORIGIN)return fail("Origem não autorizada.",403,accepted);
   try{
