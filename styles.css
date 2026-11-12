@@ -116,17 +116,20 @@ a:hover {
 }
 
 /* O logo original tem margens transparentes; esta janela enquadra apenas a marca. */
-.brand {
+/* Logo ASTROS: ocupa a caixa do cabeçalho sem recortes ou ampliações. */
+.header .brand {
     display: flex;
     align-items: center;
-    justify-content: flex-start;
+    justify-content: center;
     flex: 0 0 154px;
     width: 154px;
     height: 60px;
-    overflow: hidden;
+    min-width: 0;
+    overflow: visible;
 }
-.brand img {
+.header .brand img {
     display: block;
+    position: static;
     flex: none;
     width: 140px;
     height: 54px;
@@ -136,6 +139,7 @@ a:hover {
     object-position: center;
     transform: none;
 }
+
 .nav { order: 1; }
 .nav-action { order: 3; justify-self: end; } */
 
@@ -1361,8 +1365,8 @@ a:hover {
         height: 63px
     }
 
-    .brand { flex-basis: 116px; width: 116px; height: 46px; }
-    .brand img { width: 108px; height: 42px; max-height: 100%; transform: none; }
+    .header .brand { flex-basis: 116px; width: 116px; height: 46px; }
+    .header .brand img { width: 108px; height: 42px; max-height: 100%; transform: none; }
 
     .nav-action {
         padding: 11px;
