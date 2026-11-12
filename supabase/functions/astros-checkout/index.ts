@@ -291,6 +291,76 @@ async function handleWebhook(request:Request){
 }
 // Teste único sem números ASTROS: um nonce de 128 bits só permite uma execução,
 // e somente quando o ambiente é Sandbox e pagamentos reais estão desativados.
+async function sandboxReconcile(providerId:string,webhookAuthenticated=false){
+  if(PAGBANK_ENV!=="sandbox"||!pagOrder.test(providerId))
+    throw Error("Identificador inválido ou fora do Sandbox");
+  const {data:run,error:lookupError}=await db.from("astros_sandbox_runs")
+    .select("id,reference,amount_cents,provider_order_id")
+    .eq("provider_order_id",providerId).maybeSingle();
+  if(lookupError)throw lookupError;
+  if(!run)throw Error("Pedido não é um teste ASTROS autorizado");
+  const response=await pagbank("/orders/"+encodeURIComponent(providerId));
+  if(response.id!==providerId||response.reference_id!==run.reference)
+    throw Error("Referência externa do pedido de teste divergente");
+  const charge=extractCharge(response,run.reference,run.amount_cents);
+  const now=new Date().toISOString();
+  const update:any={latest_status:String(charge.status),last_checked_at:now,
+    provider_http_status:200};
+  if(webhookAuthenticated){
+    update.webhook_authenticated=true;
+    update.webhook_received_at=now;
+  }
+  const {error:updateError}=await db.from("astros_sandbox_runs")
+    .update(update).eq("id",run.id);
+  if(updateError)throw updateError;
+  return {status:String(charge.status),webhookAuthenticated,orderId:providerId};
+}
+async function sandboxConsumeNonce(request:Request){
+  if(PAGBANK_ENV!=="sandbox"||PAYMENTS_ENABLED)return false;
+  const nonce=String(request.headers.get("x-astros-test-nonce")||"");
+  if(!uuid.test(nonce))return false;
+  const {data,error}=await db.rpc("astros_consume_sandbox_nonce",{p_token:nonce});
+  if(error)throw error;
+  return data===true;
+}
+async function sandboxCheckStatus(request:Request){
+  if(!await sandboxConsumeNonce(request))return fail("Teste não autorizado.",403);
+  const {data,error}=await db.from("astros_sandbox_runs")
+    .select("id,provider_order_id,initial_status,latest_status,webhook_authenticated,webhook_received_at,created_at")
+    .not("provider_order_id","is",null).order("created_at",{ascending:false}).limit(1).maybeSingle();
+  if(error)throw error;
+  if(!data)return fail("Nenhum teste Sandbox registrado.",404);
+  try{
+    const state=await sandboxReconcile(data.provider_order_id);
+    return json({sandbox:true,orderId:data.provider_order_id,
+      initialStatus:data.initial_status,currentStatus:state.status,
+      webhookAuthenticated:data.webhook_authenticated,
+      webhookReceivedAt:data.webhook_received_at,
+      noRaffleTicketsModified:true});
+  }catch(error){
+    console.error("Consulta do teste Sandbox falhou",String(error));
+    return fail("Não foi possível consultar o pedido Sandbox.",502);
+  }
+}
+async function sandboxWebhook(request:Request) {
+  if(PAGBANK_ENV!=="sandbox"||PAYMENTS_ENABLED)
+    return fail("Webhook de teste desligado.",403);
+  const raw=await request.text();
+  if(raw.length>100000)return fail("Notificação extensa demais.",413);
+  if(!await webhookValid(request,raw))return fail("Assinatura inválida.",401);
+  let event:any;
+  try{event=JSON.parse(raw);}catch{return fail("JSON inválido.",400);}
+  const providerId=String(event.id||event.charges?.[0]?.metadata?.ps_order_id||"");
+  if(!pagOrder.test(providerId))return fail("ID PagBank inválido.",400);
+  try{
+    const result=await sandboxReconcile(providerId,true);
+    return json({ok:true,sandbox:true,status:result.status});
+  }catch(error){
+    console.error("Falha na conciliação do webhook Sandbox",String(error));
+    return fail("Não foi possível conciliar o pedido de teste.",409);
+  }
+}
+
 async function runIsolatedSandboxPixTest(request:Request) {
   if(PAGBANK_ENV!=="sandbox"||PAYMENTS_ENABLED)
     return fail("Teste permitido apenas no Sandbox, com vendas desativadas.",403);
