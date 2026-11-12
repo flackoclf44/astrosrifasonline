@@ -30,6 +30,7 @@ aleatória ativa. Confira a titularidade da conta antes de oferecer pagamentos.
 3. Conecte a Supabase CLI com `supabase login` e
    `supabase link --project-ref SEU_PROJETO`.
 4. Defina os secrets da Edge Function no painel do Supabase, nunca no GitHub:
+   - `ASTROS_PAYMENTS_ENABLED`: use `false` durante a configuração; somente `true` quando a integração estiver testada e aprovada.
    - `PAGBANK_ACCESS_TOKEN`: token emitido no painel PagBank
    - `PAGBANK_ENV`: `sandbox` para testes, `production` após aprovação
    - `ALLOWED_SITE_ORIGIN`: `https://flackoclf44.github.io`
@@ -90,3 +91,8 @@ sem confirmação ou baixa automática. Não ative antes de testar.**
   a reserva, para evitar números vendidos duas vezes.
 - A página `sorteio.html` ainda é demonstrativa e não apura pagamentos reais.
 - Verifique taxas/custos da API, do banco e da hospedagem.
+
+
+### Endpoint de diagnóstico
+A função Supabase já está publicada em `https://lrbcyyrczpthkfadngvd.supabase.co/functions/v1/astros-checkout/health`.
+A rota informa `ready:false` enquanto o token ou a ativação estiver ausente. A publicação do endpoint **não ativa cobrança**.
