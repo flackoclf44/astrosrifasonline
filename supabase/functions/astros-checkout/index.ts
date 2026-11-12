@@ -185,26 +185,39 @@ function derToRaw(input:Uint8Array){
   const all=new Uint8Array(64);all.set(r,0);all.set(s,32);
   return all;
 }
+let autoWebhookKey:{value:string;expiresAt:number}|null=null;
+async function webhookPublicKey(){
+  if(WEBHOOK_PUBLIC_KEY)return WEBHOOK_PUBLIC_KEY.trim().replace(/\\s+/g,"");
+  if(autoWebhookKey&&autoWebhookKey.expiresAt>Date.now())return autoWebhookKey.value;
+  // A chave pública ECDSA não é um segredo: recuperamos via API autenticada,
+  // sem exigir que o responsável cole a chave no GitHub ou neste chat.
+  const response=await pagbank("/public-keys?type=webhook");
+  const value=String(response.public_key||"").trim().replace(/\\s+/g,"");
+  if(!value||value.length>2048||!/^[A-Za-z0-9+/=]+$/.test(value))
+    throw Error("PagBank não retornou chave de webhook válida.");
+  autoWebhookKey={value,expiresAt:Date.now()+30*60_000};
+  return value;
+}
 async function webhookValid(request:Request,raw:string) {
   const current=request.headers.get("x-payload-signature");
   if(current){
-    if(!WEBHOOK_PUBLIC_KEY)return false;
     try{
+      const publicKey=await webhookPublicKey();
       const key=await crypto.subtle.importKey(
-        "spki",decodeBase64(WEBHOOK_PUBLIC_KEY.replace(/\s+/g,"")),
-        {name:"ECDSA",namedCurve:"P-256"},false,["verify"]);
+        "spki",decodeBase64(publicKey),{name:"ECDSA",namedCurve:"P-256"},false,["verify"]);
+      const payload=new TextEncoder().encode(raw);
       for(const item of current.split(",")){
         try{
           const signature=derToRaw(decodeBase64(item.trim()));
           if(await crypto.subtle.verify(
-            {name:"ECDSA",hash:"SHA-256"},key,signature,new TextEncoder().encode(raw)))
+            {name:"ECDSA",hash:"SHA-256"},key,signature,payload))
             return true;
         }catch {continue;}
       }
-    }catch(e){console.error("Chave de webhook inválida",String(e));}
+    }catch(e){console.error("Não foi possível validar webhook PagBank",String(e));}
     return false;
   }
-  // Compatibilidade com webhooks PagBank do modelo anterior.
+  // Suporte ao modelo antigo, somente quando não houver assinatura ECDSA.
   const old=request.headers.get("x-authenticity-token");
   if(!old||!PAGBANK_TOKEN||!/^[0-9a-f]{64}$/i.test(old))return false;
   const hash=new Uint8Array(await crypto.subtle.digest("SHA-256",
