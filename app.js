@@ -3,6 +3,7 @@ const $ = (id) => document.getElementById(id);
 const PRICE_CENTS = 250;
 const MAX_TICKETS = 150;
 const SELECT_LIMIT = 20;
+const BLOCKED_NUMBERS = new Set([24]);
 const WHATSAPP_NUMBER = '5514991911888';
 const selected = new Set();
 const pad = n => String(n).padStart(3, '0');
@@ -13,9 +14,14 @@ function renderGrid() {
   for (let n=1; n<=MAX_TICKETS; n++) {
     const btn = document.createElement('button');
     btn.type = 'button'; btn.className = 'number'; btn.textContent=pad(n);
+    if (BLOCKED_NUMBERS.has(n)) {
+      btn.disabled = true;
+      btn.title = 'Número indisponível para compra';
+    }
     btn.setAttribute('aria-pressed', String(selected.has(n)));
-    btn.setAttribute('aria-label', `Número ${pad(n)}, ${selected.has(n)?'selecionado':'não selecionado'}`);
+    btn.setAttribute('aria-label', `Número ${pad(n)}, ${BLOCKED_NUMBERS.has(n) ? 'indisponível para compra' : selected.has(n) ? 'selecionado' : 'não selecionado'}`);
     btn.addEventListener('click', () => {
+      if (BLOCKED_NUMBERS.has(n)) return;
       if (selected.has(n)) selected.delete(n);
       else if (selected.size<SELECT_LIMIT) selected.add(n);
       else { $('numbersHelp').textContent='Nesta demonstração, selecione no máximo 20 números.'; return; }
@@ -124,7 +130,7 @@ function showPreview(){
 }
 function closePreview() { $('modal').hidden=true; if(focusBeforeModal)focusBeforeModal.focus(); }
 $('randomBtn').addEventListener('click',()=>{
-  const remaining=Array.from({length:MAX_TICKETS},(_,i)=>i+1).filter(n=>!selected.has(n));
+  const remaining=Array.from({length:MAX_TICKETS},(_,i)=>i+1).filter(n=>!selected.has(n) && !BLOCKED_NUMBERS.has(n));
   if(!remaining.length||selected.size>=SELECT_LIMIT)return;
   const randomBytes=new Uint32Array(1);
   if (typeof crypto!=='undefined' && crypto.getRandomValues) crypto.getRandomValues(randomBytes);
@@ -139,4 +145,8 @@ $('previewClose').addEventListener('click',openWhatsappForSelectedNumbers);
 $('modal').addEventListener('click',e=>{if(e.target===$('modal'))closePreview();});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('modal').hidden)closePreview();});
 configurePixPopup();
+$('statAvailable').textContent = MAX_TICKETS - BLOCKED_NUMBERS.size;
+$('statAvailable').nextElementSibling.textContent = 'NÚMEROS NÃO BLOQUEADOS';
+const unavailableLegend = document.querySelector('.number-key .key-selected')?.parentElement;
+if (unavailableLegend) unavailableLegend.lastChild.textContent = ' Indisponível';
 renderGrid(); renderSummary();
