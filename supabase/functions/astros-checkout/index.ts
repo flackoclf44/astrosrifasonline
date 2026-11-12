@@ -289,6 +289,74 @@ async function handleWebhook(request:Request){
   await reconcileOrder(providerId);
   return json({ok:true});
 }
+// Teste único sem números ASTROS: um nonce de 128 bits só permite uma execução,
+// e somente quando o ambiente é Sandbox e pagamentos reais estão desativados.
+async function runIsolatedSandboxPixTest(request:Request) {
+  if(PAGBANK_ENV!=="sandbox"||PAYMENTS_ENABLED)
+    return fail("Teste permitido apenas no Sandbox, com vendas desativadas.",403);
+  if(!PAGBANK_TOKEN||!SUPABASE_URL||!SERVICE_KEY)
+    return fail("Credenciais seguras não estão configuradas.",503);
+  const nonce=String(request.headers.get("x-astros-test-nonce")||"");
+  if(!uuid.test(nonce))return fail("Teste não autorizado.",403);
+  const {data:consumed,error:nonceError}=await db.rpc("astros_consume_sandbox_nonce",
+    {p_token:nonce});
+  if(nonceError){console.error("Falha no nonce do teste",nonceError.code);
+    return fail("Não foi possível validar autorização do teste.",503);}
+  if(!consumed)return fail("Autorização do teste expirada ou já utilizada.",403);
+  // Somente dados sintéticos reproduzidos da documentação PagBank Sandbox.
+  const reference="ASTROS-SANDBOX-"+crypto.randomUUID();
+  const payload={
+    reference_id:reference,
+    customer:{
+      name:"Jose Silva",email:"teste@hotmail.com",tax_id:"12345678909",
+      phones:[{country:"55",area:"19",number:"981389324",type:"MOBILE"}]
+    },
+    items:[{reference_id:"ASTROS-PIX-SANDBOX",name:"Teste tecnico Pix sem venda",
+      quantity:1,unit_amount:250}],
+    charges:[{
+      reference_id:reference,description:"Teste PagBank Sandbox ASTROS",
+      amount:{value:250,currency:"BRL"},
+      payment_method:{type:"PIX",pix:{
+        expiration_date:new Date(Date.now()+30*60_000).toISOString()
+      }}
+    }]
+  };
+  try{
+    const response=await fetch("https://sandbox.api.pagseguro.com/orders",{
+      method:"POST",
+      headers:{
+        "Authorization":"Bearer "+PAGBANK_TOKEN,
+        "Accept":"application/json",
+        "Content-Type":"application/json",
+        "x-idempotency-key":reference.replace(/-/g,"").slice(0,64)
+      },
+      body:JSON.stringify(payload),
+      signal:AbortSignal.timeout(15_000)
+    });
+    const body=await response.json().catch(()=>({}));
+    const charge=Array.isArray(body.charges)?body.charges[0]:null;
+    const problems=Array.isArray(body.error_messages)?body.error_messages.slice(0,5)
+      .map((x:any)=>({
+        code:String(x.code||"").slice(0,32),
+        parameter:String(x.parameter_name||"").slice(0,60),
+        message:String(x.description||"").slice(0,180)
+      })):[];
+    return json({
+      sandbox:true,created:response.ok&&Boolean(body.id),
+      providerHttpStatus:response.status,
+      chargeStatus:charge?.status||null,
+      qrCodeCreated:Boolean(charge?.qr_code?.text),
+      orderIdFormatValid:typeof body.id==="string"&&pagOrder.test(body.id),
+      problemCodes:problems,
+      ticketNumbersChanged:false,
+      noRealMoney:true
+    },response.ok?200:422);
+  }catch(e){
+    console.error("Teste Pix Sandbox falhou",String(e));
+    return fail("PagBank indisponível ou sem resposta para criar Pix Sandbox.",502);
+  }
+}
+
 Deno.serve(async(request)=>{
   const u=new URL(request.url);
   const route=u.pathname.split("/astros-checkout")[1]||"";
@@ -304,6 +372,8 @@ Deno.serve(async(request)=>{
   if(route==="/sandbox-check"&&request.method==="GET") {
     return json(await sandboxConnectionProbe(),200,accepted);
   }
+  if(route==="/sandbox-pix-probe"&&request.method==="POST")
+    return await runIsolatedSandboxPixTest(request);
   if(!IS_CONFIGURED)return fail("PIX automático ainda não ativado.",503,accepted);
   if(!webhook&&origin!==SITE_ORIGIN)return fail("Origem não autorizada.",403,accepted);
   try{
