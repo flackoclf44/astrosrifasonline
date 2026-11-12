@@ -26,6 +26,27 @@ const PAGBANK_BASE=PAGBANK_ENV==="production"
   ?"https://api.pagseguro.com":"https://sandbox.api.pagseguro.com";
 const IS_CONFIGURED=Boolean(PAYMENTS_ENABLED&&SUPABASE_URL&&SERVICE_KEY&&PAGBANK_TOKEN
   &&SITE_ORIGIN&&FUNCTION_URL&&["production","sandbox"].includes(PAGBANK_ENV));
+let sandboxProbeCache:{time:number;status:number|null;ok:boolean}|null=null;
+async function sandboxConnectionProbe() {
+  if (PAGBANK_ENV!=="sandbox") return {sandbox:false,tokenConfigured:Boolean(PAGBANK_TOKEN),connectionOk:false,reason:"Utilize somente Sandbox"};
+  if (!PAGBANK_TOKEN) return {sandbox:true,tokenConfigured:false,connectionOk:false,reason:"Token ainda não configurado"};
+  if (!sandboxProbeCache || Date.now()-sandboxProbeCache.time>300_000) {
+    try {
+      const response=await fetch("https://sandbox.api.pagseguro.com/public-keys?type=webhook", {
+        headers:{"Accept":"application/json","Authorization":"Bearer "+PAGBANK_TOKEN},
+        signal:AbortSignal.timeout(8000)
+      });
+      // Não devolve corpo, token, chave pública nem detalhes sensíveis.
+      sandboxProbeCache={time:Date.now(),status:response.status,ok:response.ok};
+    } catch (_e) {
+      sandboxProbeCache={time:Date.now(),status:null,ok:false};
+    }
+  }
+  return {sandbox:true,tokenConfigured:true,connectionOk:sandboxProbeCache.ok,
+    httpStatus:sandboxProbeCache.status,
+    note:"Sonda somente a consulta de chave pública, sem criar cobrança Pix"};
+}
+
 const db=createClient(SUPABASE_URL || "https://invalid.supabase.co",SERVICE_KEY||"invalid",{
   auth:{persistSession:false,autoRefreshToken:false}
 });
@@ -224,6 +245,9 @@ Deno.serve(async(request)=>{
     "access-control-allow-headers":"content-type",
     "access-control-max-age":"600","vary":"Origin"}});
   if(route==="/health"&&request.method==="GET") return json({service:"ASTROS PagBank Pix",deployed:true,ready:IS_CONFIGURED,environment:PAGBANK_ENV,tokenConfigured:Boolean(PAGBANK_TOKEN),databaseConfigured:Boolean(SUPABASE_URL&&SERVICE_KEY),paymentsEnabled:PAYMENTS_ENABLED},200,accepted);
+  if(route==="/sandbox-check"&&request.method==="GET") {
+    return json(await sandboxConnectionProbe(),200,accepted);
+  }
   if(!IS_CONFIGURED)return fail("PIX automático ainda não ativado.",503,accepted);
   if(!webhook&&origin!==SITE_ORIGIN)return fail("Origem não autorizada.",403,accepted);
   try{
