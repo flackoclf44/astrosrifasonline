@@ -3,7 +3,7 @@ const $ = (id) => document.getElementById(id);
 const PRICE_CENTS = 250;
 const MAX_TICKETS = 150;
 const SELECT_LIMIT = 20;
-const BLOCKED_NUMBERS = new Set([1, 7, 8, 10, 24, 64]);
+const BLOCKED_NUMBERS = new Set([1, 7, 8, 10, 24, 51, 64]);
 const REMOTE_SOLD = new Set();
 const REMOTE_RESERVED = new Set();
 const REMOTE_BLOCKED = new Set();
