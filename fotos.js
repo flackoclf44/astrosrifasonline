@@ -4,7 +4,26 @@ const $=id=>document.getElementById(id), money=n=>(n/100).toLocaleString("pt-BR"
 let events=[],photos=[],activeEvent="all",cart=new Map(),order=null,poll=null,adminKey=sessionStorage.getItem("astros_fotos_admin")||"",watermark=null;
 async function req(path,opts={}){const r=await fetch(API+path,{...opts,headers:{"content-type":"application/json",...(opts.headers||{})},cache:"no-store"});const d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.error||"Falha na comunicação.");return d}
 function renderEvents(){const host=$("events");host.replaceChildren();const all=document.createElement("button");all.className="event-chip "+(activeEvent==="all"?"active":"");all.textContent="TODOS OS EVENTOS";all.onclick=()=>{activeEvent="all";renderEvents();renderPhotos()};host.append(all);events.forEach(e=>{const b=document.createElement("button");b.className="event-chip "+(activeEvent===e.id?"active":"");b.textContent=[e.title,e.sport].filter(Boolean).join(" / ");b.onclick=()=>{activeEvent=e.id;renderEvents();renderPhotos()};host.append(b)})}
-function renderPhotos(){const host=$("gallery");host.replaceChildren();const list=photos.filter(p=>activeEvent==="all"||p.event_id===activeEvent);$("empty").hidden=!!list.length;list.forEach(p=>{const card=document.createElement("article");card.className="photo-card";const img=document.createElement("img");img.src=p.preview_url;img.alt="Prévia com marca d'água ASTROS";img.loading="lazy";const meta=document.createElement("div");meta.className="photo-meta";const name=document.createElement("strong");name.textContent=p.title||"FOTOGRAFIA ASTROS";const ev=events.find(e=>e.id===p.event_id);const small=document.createElement("small");small.textContent=ev?[ev.title,ev.sport].filter(Boolean).join(" • "):"ASTROS FOTOS";const actions=document.createElement("div");actions.className="photo-actions";const price=document.createElement("b");price.textContent="R$ 6,00";const btn=document.createElement("button");const chosen=cart.has(p.id);btn.className=chosen?"selected":"";btn.textContent=chosen?"ADICIONADA ✓":"ADICIONAR +";btn.onclick=()=>{if(cart.has(p.id))cart.delete(p.id);else cart.set(p.id,p);renderPhotos();renderCart()};actions.append(price,btn);meta.append(name,small,actions);card.append(img,meta);host.append(card)})}
+function openPhotoPreview(photo){
+const modal=$("photoPreviewModal"),image=$("photoPreviewImage");
+image.src=photo.preview_url;
+image.alt="Prévia ampliada com marca d’água ASTROS — "+(photo.title||"fotografia");
+$("photoPreviewTitle").textContent=photo.title||"FOTOGRAFIA ASTROS";
+$("photoPreviewPrice").textContent="R$ 6,00 • Prévia com marca d’água";
+$("photoPreviewAdd").onclick=()=>{
+if(!cart.has(photo.id))cart.set(photo.id,photo);
+renderPhotos();renderCart();closePhotoPreview();
+};
+modal.hidden=false;document.body.classList.add("photo-preview-open");$("photoPreviewClose").focus();
+}
+function closePhotoPreview(){
+$("photoPreviewModal").hidden=true;document.body.classList.remove("photo-preview-open");
+$("photoPreviewImage").removeAttribute("src");
+}
+$("photoPreviewClose").onclick=closePhotoPreview;
+$("photoPreviewModal").onclick=e=>{if(e.target===$("photoPreviewModal"))closePhotoPreview()};
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("photoPreviewModal").hidden)closePhotoPreview()});
+function renderPhotos(){const host=$("gallery");host.replaceChildren();const list=photos.filter(p=>activeEvent==="all"||p.event_id===activeEvent);$("empty").hidden=!!list.length;list.forEach(p=>{const card=document.createElement("article");card.className="photo-card";const img=document.createElement("img");img.src=p.preview_url;img.alt="Prévia com marca d'água ASTROS";img.loading="lazy";img.tabIndex=0;img.setAttribute("role","button");img.setAttribute("aria-label","Ampliar foto "+(p.title||"ASTROS")+" com marca d’água");img.onclick=()=>openPhotoPreview(p);img.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();openPhotoPreview(p)}};const meta=document.createElement("div");meta.className="photo-meta";const name=document.createElement("strong");name.textContent=p.title||"FOTOGRAFIA ASTROS";const ev=events.find(e=>e.id===p.event_id);const small=document.createElement("small");small.textContent=ev?[ev.title,ev.sport].filter(Boolean).join(" • "):"ASTROS FOTOS";const actions=document.createElement("div");actions.className="photo-actions";const price=document.createElement("b");price.textContent="R$ 6,00";const btn=document.createElement("button");const chosen=cart.has(p.id);btn.className=chosen?"selected":"";btn.textContent=chosen?"ADICIONADA ✓":"ADICIONAR +";btn.onclick=()=>{if(cart.has(p.id))cart.delete(p.id);else cart.set(p.id,p);renderPhotos();renderCart()};actions.append(price,btn);meta.append(name,small,actions);card.append(img,meta);host.append(card)})}
 function renderCart(){const host=$("cartItems");host.replaceChildren();if(!cart.size)host.textContent="Nenhuma foto selecionada.";cart.forEach(p=>{const row=document.createElement("div");row.className="cart-row";const n=document.createElement("span");n.textContent=p.title||"Foto ASTROS";const price=document.createElement("b");price.textContent="R$ 6,00";row.append(n,price);host.append(row)});$("cartCount").textContent=cart.size;$("cartTotal").textContent=money(cart.size*600);$("payBtn").disabled=!cart.size}
 async function loadCatalog(){const d=await req("/catalog");events=d.events||[];photos=d.photos||[];renderEvents();renderPhotos()}
 function showModal(){ $("payModal").hidden=false; }
