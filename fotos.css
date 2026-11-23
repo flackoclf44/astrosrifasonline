@@ -65,3 +65,19 @@
   .gallery {gap:8px}
   .photo-meta {padding:9px 7px}
 }
+
+/* Ampliação de prévia: utiliza apenas o arquivo público com marca d'água */
+.photo-card img[role="button"]{cursor:zoom-in}
+.photo-card img[role="button"]:focus-visible{outline:3px solid #fff;outline-offset:-3px}
+.photo-preview-modal[hidden]{display:none!important}
+.photo-preview-modal{position:fixed;inset:0;z-index:100;display:grid;place-items:center;background:rgba(0,0,0,.92);padding:20px}
+.photo-preview-dialog{position:relative;width:min(1000px,100%);max-height:calc(100dvh - 40px);display:flex;flex-direction:column;min-height:0;background:#131316;border:1px solid #444}
+.photo-preview-close{position:absolute;right:12px;top:12px;z-index:2;width:44px;height:44px;background:#111e;color:#fff;border:1px solid #777;font-size:21px;cursor:pointer}
+.photo-preview-image-wrap{min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#080809}
+.photo-preview-image-wrap img{display:block;max-width:100%;max-height:calc(100dvh - 165px);width:auto;height:auto;object-fit:contain}
+.photo-preview-footer{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 20px}
+.photo-preview-footer strong{display:block;font-size:13px;overflow-wrap:anywhere}
+.photo-preview-footer small{display:block;color:#aaa;font-size:11px;margin-top:4px}
+.photo-preview-footer .lightbtn{flex-shrink:0}
+body.photo-preview-open{overflow:hidden}
+@media(max-width:600px){.photo-preview-modal{padding:8px}.photo-preview-dialog{max-height:calc(100dvh - 16px)}.photo-preview-image-wrap img{max-height:calc(100dvh - 175px)}.photo-preview-footer{padding:12px;gap:12px;align-items:stretch;flex-direction:column}.photo-preview-footer .lightbtn{width:100%;padding:13px;font-size:10px}.photo-preview-close{top:8px;right:8px}}
