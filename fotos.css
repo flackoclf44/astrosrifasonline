@@ -81,3 +81,4 @@
 .photo-preview-footer .lightbtn{flex-shrink:0}
 body.photo-preview-open{overflow:hidden}
 @media(max-width:600px){.photo-preview-modal{padding:8px}.photo-preview-dialog{max-height:calc(100dvh - 16px)}.photo-preview-image-wrap img{max-height:calc(100dvh - 175px)}.photo-preview-footer{padding:12px;gap:12px;align-items:stretch;flex-direction:column}.photo-preview-footer .lightbtn{width:100%;padding:13px;font-size:10px}.photo-preview-close{top:8px;right:8px}}
+\n.video-card video{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;background:#111;cursor:pointer}.video-card video:hover{opacity:.9}\n
