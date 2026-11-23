@@ -2,3 +2,5 @@
 
 /* Corrige o estado inicial da janela de pagamento: hidden precisa prevalecer sobre display:grid. */
 .modal[hidden]{display:none!important}
+
+.recover-btn{width:100%;background:transparent;color:#ddd;border:1px solid #555;padding:12px;margin-top:10px;cursor:pointer;font-size:10px;font-weight:900;letter-spacing:.08em}.recover-btn:hover{background:#303035}
